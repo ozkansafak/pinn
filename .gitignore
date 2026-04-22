@@ -5,6 +5,9 @@ build/
 dist/
 wheels/
 *.egg-info
+nohup.out
+.ipynb_checkpoints/
+.python-version
 
 # Virtual environments
 .venv
