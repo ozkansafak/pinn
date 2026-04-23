@@ -2,7 +2,7 @@
 
 A Physics Informed Neural Network (PINN) that solves the 2D incompressible Navier Stokes equations for the classic lid driven cavity problem, without finite difference or finte volume grid, directly from the governing equations and the boundary conditions.
 
-![Flow field at epoch 15,000](images/epoch=26_000.png)
+![Flow field at epoch 35,608 Re=100](images/epoch=35_608%20Re=100.png)
 
 ---
 

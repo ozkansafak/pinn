@@ -127,14 +127,14 @@ def visualize(net, epoch, histories, N=64, step=4, s=10):
         ax.legend(fontsize=8)
 
     # Row 1: Cross-sections
-    ax_u = fig.add_subplot(gs[1, 0:3])
+    ax_u = fig.add_subplot(gs[1, 1:3])
     ax_u.plot(x_sec, u_sec, c='k', alpha=0.6)
     ax_u.set_title("u(x, y=0.5) — cross-sectional slice")
     ax_u.set_xlabel("x")
     ax_u.set_ylabel("u")
     ax_u.margins(x=0)
 
-    ax_v = fig.add_subplot(gs[1, 3:6])
+    ax_v = fig.add_subplot(gs[1, 4:6])
     ax_v.plot(x_sec, v_sec, c='k', alpha=0.6)
     ax_v.set_title("v(x, y=0.5) — cross-sectional slice")
     ax_v.set_xlabel("x")
@@ -173,11 +173,11 @@ def visualize(net, epoch, histories, N=64, step=4, s=10):
     plt.colorbar(cf, ax=ax_p, label="p")
     ax_p.quiver(
         xs[::step], ys[::step],
-        dP_dx[::step, ::step].T, dP_dy[::step, ::step].T,
+        -dP_dx[::step, ::step].T, -dP_dy[::step, ::step].T,
         mag[::step, ::step].T.flatten(),
         cmap=black_red, alpha=0.7,
     )
-    ax_p.set_title("Pressure + ∇p")
+    ax_p.set_title("Pressure + (−∇p)")
     ax_p.set_xlabel("x")
     ax_p.set_ylabel("y")
     ax_p.set_xlim(0, 1)
@@ -193,6 +193,7 @@ def visualize(net, epoch, histories, N=64, step=4, s=10):
     ax_s.set_ylim(0, 1)
     ax_s.set_aspect("equal")
 
+    plt.tight_layout()
     plt.show()
 
 
