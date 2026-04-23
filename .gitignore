@@ -8,6 +8,7 @@ wheels/
 nohup.out
 .ipynb_checkpoints/
 .python-version
+.DS_Store
 
 # Virtual environments
 .venv

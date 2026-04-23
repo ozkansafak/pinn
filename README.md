@@ -1,22 +1,24 @@
 # PINN — Lid-Driven Cavity Flow
 
-A Physics-Informed Neural Network (PINN) that solves the 2-D incompressible Navier-Stokes equations for the classic lid-driven cavity problem, without any simulation data or mesh.
+A Physics Informed Neural Network (PINN) that solves the 2D incompressible Navier Stokes equations for the classic lid driven cavity problem, without finite difference or finte volume grid, directly from the governing equations and the boundary conditions.
+
+![Flow field at epoch 15,000](images/epoch=16_000.png)
 
 ---
 
 ## The CFD Problem
 
-The lid-driven cavity is a canonical benchmark in computational fluid dynamics. The domain is a unit square [0,1]² filled with a viscous, incompressible fluid. The top wall (y=1) moves horizontally at unit velocity (u=1), while the three remaining walls are stationary. This drives a primary recirculating vortex inside the cavity.
+The lid-driven cavity is a canonical benchmark in computational fluid dynamics. The domain is a unit square [0,1]² filled with a viscous, incompressible fluid. The top wall (y=1) moves horizontally at unit velocity (u=1), while the three remaining walls are stationary. This drives an asymmetric circulating vortex inside the cavity.
 
 The governing equations are the incompressible Navier-Stokes equations:
 
-**x-momentum:**
+**x-momentum conservation:**
 $$u \frac{\partial u}{\partial x} + v \frac{\partial u}{\partial y} + \frac{\partial p}{\partial x} - \nu \left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) = 0$$
 
-**y-momentum:**
+**y-momentum conservation:**
 $$u \frac{\partial v}{\partial x} + v \frac{\partial v}{\partial y} + \frac{\partial p}{\partial y} - \nu \left(\frac{\partial^2 v}{\partial x^2} + \frac{\partial^2 v}{\partial y^2}\right) = 0$$
 
-**Continuity (mass conservation):**
+**Mass conservation:**
 $$\frac{\partial u}{\partial x} + \frac{\partial v}{\partial y} = 0$$
 
 where `u`, `v` are the velocity components, `p` is pressure, and `ν = 0.01` is the kinematic viscosity (Re = 100).
@@ -31,7 +33,7 @@ A fully-connected neural network takes a spatial coordinate `(x, y)` as input an
 (x, y)  →  [Linear → Tanh] × 4  →  Linear  →  (u, v, p)
 ```
 
-Architecture: `[2, 64, 64, 64, 64, 3]` — two input neurons, four hidden layers of 64 neurons with Tanh activations, three output neurons. Tanh is chosen over ReLU because the NS equations involve second-order derivatives, which vanish for ReLU activations.
+Architecture: `[2, 64, 64, 64, 64, 3]` (12,867 parameters) — two input neurons, four hidden layers of 64 neurons with Tanh activations, three output neurons. Tanh is chosen over ReLU because the NS equations involve second-order derivatives, which vanish for ReLU activations.
 
 The network is a continuous function approximator — it represents the flow field at every point in the domain, not just on a fixed mesh.
 
@@ -39,7 +41,7 @@ The network is a continuous function approximator — it represents the flow fie
 
 ## Boundary Conditions
 
-The boundary condition loss penalises the network for violating the no-slip and lid conditions on all four walls:
+The boundary condition loss penalizes the network for violating the no-slip and lid conditions on all four walls:
 
 | Wall | Condition |
 |------|-----------|
@@ -64,7 +66,7 @@ $$\mathcal{L} = 10 \cdot \mathcal{L}_{BC} + \mathcal{L}_{PDE} + 10 \cdot \mathca
 
 **PDE loss** `L_PDE` — enforces the Navier-Stokes equations at collocation points in the interior (see below).
 
-**Pressure gauge fix** `L_p` — the incompressible NS equations only determine pressure up to an additive constant (if `p` is a solution, so is `p + C`). Without fixing this degeneracy, the optimizer wastes capacity fighting the ambiguity. We pin `p(0.5, 0.5) = 0`:
+**Pressure gauge fix** `L_p` — the incompressible NS equations only determine pressure up to an additive constant (if `p(x,y)` is a solution, so is `p(x,y) + k`). We pin `p(0.5, 0.5) = 0`:
 
 $$\mathcal{L}_{p} = p(0.5, 0.5)^2$$
 
@@ -112,7 +114,7 @@ During the training backward pass, gradients flow all the way through the deriva
 
 ## Inference
 
-Once trained, the network is a mesh-free surrogate for the flow field. Any point `(x, y) ∈ [0,1]²` can be queried instantly:
+Once trained, the network is a meshfree surrogate for the flow field. Any point `(x, y) ∈ [0,1]²` can be queried instantly:
 
 ```python
 with torch.no_grad():
