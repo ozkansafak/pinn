@@ -12,3 +12,7 @@ nohup.out
 
 # Virtual environments
 .venv
+
+# Training output images (PNGs ignored, mp4s tracked)
+images/Re=*/
+!images/Re=*.mp4

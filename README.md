@@ -2,7 +2,9 @@
 
 A Physics Informed Neural Network (PINN) that solves the 2D incompressible Navier Stokes equations for the classic lid driven cavity problem, without finite difference or finte volume grid, directly from the governing equations and the boundary conditions.
 
-![Flow field at epoch 35,608 Re=100](images/epoch=35_608%20Re=100.png)
+![Flow field at epoch 35,608 Re=100](images/epoch=70_000%20Re=100.png)
+
+[Animation — Re=100 (mp4)](images/Re=100.mp4)
 
 ---
 
@@ -12,10 +14,10 @@ The lid-driven cavity is a canonical benchmark in computational fluid dynamics. 
 
 The governing equations are the incompressible Navier-Stokes equations:
 
-**x-momentum conservation:**
+**x-dir momentum conservation:**
 $$u \frac{\partial u}{\partial x} + v \frac{\partial u}{\partial y} + \frac{\partial p}{\partial x} - \nu \left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right) = 0$$
 
-**y-momentum conservation:**
+**y-dir  momentum conservation:**
 $$u \frac{\partial v}{\partial x} + v \frac{\partial v}{\partial y} + \frac{\partial p}{\partial y} - \nu \left(\frac{\partial^2 v}{\partial x^2} + \frac{\partial^2 v}{\partial y^2}\right) = 0$$
 
 **Mass conservation:**
@@ -50,7 +52,7 @@ The boundary condition loss penalizes the network for violating the no-slip and 
 | Left (x=0) | u=0, v=0 |
 | Right (x=1) | u=0, v=0 |
 
-`N_b = 200` points are sampled uniformly along the four walls. The BC loss is:
+`N_b = 1,000` points are sampled uniformly along the four walls. The BC loss is:
 
 $$\mathcal{L}_{BC} = \frac{1}{N_b} \sum_i \left[ (u_{pred} - u_{BC})^2 + (v_{pred} - v_{BC})^2 \right]$$
 
@@ -80,7 +82,7 @@ The factor of 10 on `L_BC` and `L_p` weights them more heavily than the PDE resi
 
 $$\mathcal{L}_{PDE} = \frac{1}{N_f} \sum_i \left( r_x^2 + r_y^2 + r_c^2 \right)$$
 
-where `r_x`, `r_y`, `r_c` are the residuals of the x-momentum, y-momentum, and continuity equations evaluated at each collocation point. A perfect solution to the NS equations would give `L_PDE = 0`.
+where `r_x`, `r_y`, `r_c` are the residuals of the x-momentum, y-momentum, and mass conservation equations evaluated at each collocation point. A perfect solution to the NS equations would give `L_PDE = 0`.
 
 ### Evaluation L_PDE
 
@@ -106,7 +108,7 @@ u_x  = grad(u.sum(), x_f, create_graph=True)[0]   # ∂u/∂x
 u_xx = grad(u_x.sum(), x_f, create_graph=True)[0]  # ∂²u/∂x²
 ```
 
-`create_graph=True` is required for second derivatives — it tells PyTorch to keep the graph of `u_x` so that it can be differentiated again to get `u_xx`.
+`create_graph=True` is required for second derivatives; it tells PyTorch to keep the graph of `u_x` so that it can be differentiated again to get `u_xx`.
 
 During the training backward pass, gradients flow all the way through the derivative computation back to the network weights, so the optimizer can minimize the PDE residual by adjusting the network parameters.
 
@@ -123,7 +125,7 @@ with torch.no_grad():
 
 `torch.no_grad()` is used here because we only want the network's predictions — no derivatives w.r.t. the weights are needed.
 
-To evaluate `L_PDE` at inference time (e.g. on a large point cloud for a high-fidelity accuracy estimate), `torch.no_grad()` cannot be used because the NS residual still requires autograd through the input coordinates. The network weights are not updated — no `.backward()` or `.step()` is called — but the input coordinates must remain in the computation graph.
+To evaluate `L_PDE` at inference time (e.g. on a large point cloud for a high-fidelity accuracy estimate), `torch.no_grad()` cannot be used because the NS residual still requires autograd through the input coordinates. The network weights are not updated; no `.backward()` or `.step()` is called. But the input coordinates must remain in the computation graph.
 
 ---
 
