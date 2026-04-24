@@ -1,10 +1,14 @@
 # PINN — Lid-Driven Cavity Flow
 
+<p align="center">
+  <img src="images/lid_driven_cavity_diagram.png" width="480"/>
+</p>
+<p align="center"><em>The lid-driven cavity: a unit square filled with viscous fluid. The top wall moves at speed u = 1.0, driving a recirculating vortex inside. The three remaining walls are stationary (no-slip).</em></p>
 
-
-![Training animation Re=100](images/Re=100.gif)
-
-Training Animation for Re=100, that shows the evolution of the flow field and the streamline function
+<p align="center">
+  <img src="images/Re=100.gif"/>
+</p>
+<p align="center"><em>Training animation for Re=100 — evolution of the flow field and streamlines</em></p>
 
 
 A Physics Informed Neural Network (PINN) that solves the 2D incompressible Navier Stokes equations for the classic lid driven cavity problem, without finite difference or finte volume grid, directly from the governing equations and the boundary conditions.
