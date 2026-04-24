@@ -38,12 +38,19 @@ def ns_residual(net, x, y, nu):
     return r_x, r_y, r_c
 
 
-def make_boundary_data(N_b=200):
+def lid_velocity(x, k=100):
+    """Smooth lid: sigmoid ramp over left and right 10%, flat u=1 in middle 80%."""
+    return torch.sigmoid(k * (x - 0.05)) * torch.sigmoid(k * (0.95 - x))
+
+
+def make_boundary_data(N_b=200, smooth_lid=True):
     t = torch.rand(N_b // 4, 1)
-    zeros, ones = torch.zeros_like(t), torch.ones_like(t)
+    zeros = torch.zeros_like(t)
+    ones = torch.ones_like(t)
     x_bc = torch.cat([t, t, zeros, ones])
     y_bc = torch.cat([zeros, ones, t, t])
-    u_bc = torch.cat([zeros, ones, zeros, zeros])  # lid (y=1): u=1
+    u_lid = lid_velocity(t) if smooth_lid else ones
+    u_bc = torch.cat([zeros, u_lid, zeros, zeros])
     v_bc = torch.zeros_like(x_bc)
     return x_bc, y_bc, u_bc, v_bc
 
@@ -54,7 +61,7 @@ def make_collocation_points(N_f=10_000):
     return x_f, y_f
 
 
-def eval_all_losses(net, nu, N_eval=2_000):
+def eval_all_losses(net, nu, N_eval=2_000, smooth_lid=True):
     # L_PDE: fresh interior collocation points
     x = torch.rand(N_eval, 1, requires_grad=True)
     y = torch.rand(N_eval, 1, requires_grad=True)
@@ -62,7 +69,7 @@ def eval_all_losses(net, nu, N_eval=2_000):
     l_pde = (r_x**2 + r_y**2 + r_c**2).mean().item()
 
     # L_BC: fresh boundary points
-    x_bc, y_bc, u_bc, v_bc = make_boundary_data(N_eval // 4)
+    x_bc, y_bc, u_bc, v_bc = make_boundary_data(N_eval // 4, smooth_lid=smooth_lid)
     with torch.no_grad():
         u_p, v_p, _ = net(x_bc, y_bc)
     l_bc = ((u_p - u_bc)**2 + (v_p - v_bc)**2).mean().item()
@@ -75,12 +82,14 @@ def eval_all_losses(net, nu, N_eval=2_000):
     return l_pde, l_bc, l_p
 
 
-def _plot_streamfunction(ax, xs, ys, U, V, n_levels=30):
+def _plot_streamfunction(ax, xs, ys, U, V, psi_levels=None):
     """Plot streamfunction isolines with one directional arrow per line."""
     import numpy as np
     dy = ys[1] - ys[0]
     psi = np.cumsum(U * dy, axis=1)  # ψ(x,y) = ∫₀ʸ u dy,  shape (N, N)
-    cs = ax.contour(xs, ys, psi.T, levels=n_levels, colors='k', linewidths=0.7, alpha=0.8, linestyles='solid')
+    if psi_levels is None:
+        psi_levels = np.linspace(-0.12, 0.0, 20)
+    cs = ax.contour(xs, ys, psi.T, levels=psi_levels, colors='k', linewidths=0.7, alpha=0.8, linestyles='solid')
 
     # Place one arrow per contour segment, direction corrected against (U, V)
     for segs in cs.allsegs:
@@ -99,7 +108,7 @@ def _plot_streamfunction(ax, xs, ys, U, V, n_levels=30):
                                         lw=0.8, mutation_scale=10))
 
 
-def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10):
+def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10, figw=20, show=True, run_label="", num_epochs=None):
     """Plot flow field, residuals, cross-sections, and loss curves in one figure.
 
     histories: dict with keys
@@ -151,28 +160,34 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10):
         (o, t, z, z, "right (x=1)"),
     ]
 
-    # ── Cross-section at y=0.5 ─────────────────────────────────────────────
+    # ── Cross-section at y=0.001, y=0.5, y=0.999 ─────────────────────────
     N_sec = 5_000
     x_sec = torch.linspace(0, 1, N_sec).unsqueeze(1)
-    y_sec = torch.full((N_sec, 1), 0.5)
     with torch.no_grad():
-        u_sec, v_sec, _ = net(x_sec, y_sec)
-    x_sec = x_sec.squeeze().numpy()
-    u_sec = u_sec.squeeze().numpy()
-    v_sec = v_sec.squeeze().numpy()
+        u_sec,     v_sec,     _ = net(x_sec, torch.full((N_sec, 1), 0.5))
+        u_sec_lid, v_sec_lid, _ = net(x_sec, torch.full((N_sec, 1), 0.999))
+        u_sec_bot, v_sec_bot, _ = net(x_sec, torch.full((N_sec, 1), 0.001))
+    x_sec      = x_sec.squeeze().numpy()
+    u_sec      = u_sec.squeeze().numpy()
+    v_sec      = v_sec.squeeze().numpy()
+    u_sec_lid  = u_sec_lid.squeeze().numpy()
+    v_sec_lid  = v_sec_lid.squeeze().numpy()
+    u_sec_bot  = u_sec_bot.squeeze().numpy()
+    v_sec_bot  = v_sec_bot.squeeze().numpy()
 
     et = histories['epochs_train']
     ep = histories['epochs_eval']
 
     # ── Figure ─────────────────────────────────────────────────────────────
-    fig = plt.figure(figsize=(20, 22), layout='constrained')
-    fig.get_layout_engine().set(rect=[0, 0, 1, 0.99])
+    fig = plt.figure(figsize=(figw, 22), layout='constrained')
+    fig.get_layout_engine().set(rect=[0, 0, 1, 0.96])
     gs = fig.add_gridspec(4, 12, hspace=0.5, wspace=0.35)
-    fig.suptitle(f"Epoch {epoch}    Re = {round(1/nu)}", fontsize=fs+3)
+    title = f"Epoch {epoch}" if not run_label else f"Epoch {epoch}\n{run_label}"
+    fig.suptitle(title, fontsize=fs+3)
 
     # ── Row 0: Vorticity+quiver+streamlines | Pressure+∇p ─────────────────
     ax_q = fig.add_subplot(gs[0, 0:6])
-    cf_w = ax_q.contourf(xs, ys, omega.T, levels=50, cmap="RdBu_r", alpha=0.7)
+    cf_w = ax_q.contourf(xs, ys, omega.T, levels=np.linspace(-70, 30, 51), cmap="RdBu_r", alpha=0.7, vmin=-70, vmax=30)
     plt.colorbar(cf_w, ax=ax_q, label="ω").ax.tick_params(labelsize=fs-1)
     _plot_streamfunction(ax_q, xs, ys, U, V)
     ax_q.set_title("Vorticity ω + streamlines", fontsize=fs)
@@ -181,7 +196,7 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10):
     ax_q.set_xlim(0, 1); ax_q.set_ylim(0, 1); ax_q.set_aspect("equal"); ax_q.set_anchor('C')
 
     ax_p = fig.add_subplot(gs[0, 6:12])
-    cf = ax_p.contourf(xs, ys, P.T, levels=50, cmap="RdBu_r")
+    cf = ax_p.contourf(xs, ys, P.T, levels=np.linspace(-1.6, 2.2, 51), cmap="RdBu_r", vmin=-1.6, vmax=2.2)
     plt.colorbar(cf, ax=ax_p, label="p").ax.tick_params(labelsize=fs-1)
     with np.errstate(invalid='ignore'):
         ax_p.quiver(xs[::step], ys[::step],
@@ -194,9 +209,9 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10):
 
     # ── Row 1: PDE residual colorplot | BC residual scatter ────────────────
     ax_pde_r = fig.add_subplot(gs[1, 0:6])
-    cf_r = ax_pde_r.contourf(xs_r.numpy(), ys_r.numpy(), pde_res.T, levels=50, cmap=white_red)
+    cf_r = ax_pde_r.contourf(xs_r.numpy(), ys_r.numpy(), pde_res.T, levels=np.linspace(0, 0.40, 51), cmap=white_red, vmin=0, vmax=0.40)
     plt.colorbar(cf_r, ax=ax_pde_r, label="r²").ax.tick_params(labelsize=fs-1)
-    ax_pde_r.set_title("L_PDE residual  r²(x,y) = rₓ² + r_y² + r_c²", fontsize=fs)
+    ax_pde_r.set_title("L_PDE residual  r²(x,y) = r_x² + r_y² + r_c²", fontsize=fs)
     ax_pde_r.set_xlabel("x", fontsize=fs); ax_pde_r.set_ylabel("y", fontsize=fs)
     ax_pde_r.tick_params(labelsize=fs-1)
     ax_pde_r.set_xlim(0, 1); ax_pde_r.set_ylim(0, 1); ax_pde_r.set_aspect("equal"); ax_pde_r.set_anchor('C')
@@ -210,7 +225,7 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10):
             xw_np = xw.squeeze().numpy()
             yw_np = yw.squeeze().numpy()
             sc = ax_bc_r.scatter(xw_np, yw_np, c=bc_err, cmap=white_red, s=6,
-                                 vmin=0, label=label)
+                                 vmin=0, vmax=0.40, label=label)
     plt.colorbar(sc, ax=ax_bc_r, label="(u_err² + v_err²)").ax.tick_params(labelsize=fs-1)
     ax_bc_r.set_title("L_BC residual on boundary", fontsize=fs)
     ax_bc_r.set_xlabel("x", fontsize=fs); ax_bc_r.set_ylabel("y", fontsize=fs)
@@ -219,18 +234,26 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10):
 
     # ── Row 2: Cross-sections ──────────────────────────────────────────────
     ax_u = fig.add_subplot(gs[2, 0:5])
-    ax_u.plot(x_sec, u_sec, c='k', alpha=0.6)
-    ax_u.set_title("u(x, y=0.5) — cross-sectional slice", fontsize=fs)
+    ax_u.plot(x_sec, u_sec,     c='k',       alpha=0.6, label='y=0.5')
+    ax_u.plot(x_sec, u_sec_lid, c='tab:red', alpha=0.7, label='y=0.999')
+    ax_u.plot(x_sec, u_sec_bot, c='tab:blue',alpha=0.7, label='y=0.001')
+    ax_u.set_title("u(x), cross-sectional slice", fontsize=fs)
     ax_u.set_xlabel("x", fontsize=fs); ax_u.set_ylabel("u", fontsize=fs)
     ax_u.tick_params(labelsize=fs-1)
     ax_u.margins(x=0)
+    ax_u.set_ylim(-0.2, 1.05)
+    ax_u.legend(fontsize=fs-2, loc='center right')
 
     ax_v = fig.add_subplot(gs[2, 7:12])
-    ax_v.plot(x_sec, v_sec, c='k', alpha=0.6)
-    ax_v.set_title("v(x, y=0.5) — cross-sectional slice", fontsize=fs)
+    ax_v.plot(x_sec, v_sec,     c='k',       alpha=0.6, label='y=0.5')
+    ax_v.plot(x_sec, v_sec_lid, c='tab:red', alpha=0.7, label='y=0.999')
+    ax_v.plot(x_sec, v_sec_bot, c='tab:blue',alpha=0.7, label='y=0.001')
+    ax_v.set_title("v(x), cross-sectional slice", fontsize=fs)
     ax_v.set_xlabel("x", fontsize=fs); ax_v.set_ylabel("v", fontsize=fs)
     ax_v.tick_params(labelsize=fs-1)
     ax_v.margins(x=0)
+    ax_v.set_ylim(-0.2, 0.16)
+    ax_v.legend(fontsize=fs-2, loc='upper right')
 
     # ── Row 3: Loss curves ─────────────────────────────────────────────────
     for col, (key_tr, key_ev, title) in enumerate([
@@ -238,7 +261,7 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10):
         ('train_bc_loss',  'eval_bc_loss',  'L_BC  (boundary condition)'),
         ('train_p_loss',   'eval_p_loss',   'L_p  (pressure gauge fix)'),
     ]):
-        ax = fig.add_subplot(gs[3, col*4:(col+1)*4])
+        ax = fig.add_subplot(gs[3, col*3:(col+1)*3])
         if et:
             ax.semilogy(et[::s], histories[key_tr][::s], c='k', alpha=0.6, label='train')
         if ep:
@@ -247,13 +270,28 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10):
         ax.set_xlabel("Epoch", fontsize=fs)
         ax.tick_params(labelsize=fs-1)
         ax.margins(x=0)
+        if num_epochs is not None:
+            ax.set_xlim(0, num_epochs)
         if key_tr != 'train_bc_loss':
             ax.legend(fontsize=fs-1)
 
-    plt.show()
+    ax_lr = fig.add_subplot(gs[3, 9:12])
+    lr_hist = histories.get('lr_history', [])
+    if et and lr_hist:
+        ax_lr.semilogy(et[::s], lr_hist[::s], c='k', alpha=0.8)
+    ax_lr.set_title("Learning rate", fontsize=fs)
+    ax_lr.set_xlabel("Epoch", fontsize=fs)
+    ax_lr.tick_params(labelsize=fs-1)
+    ax_lr.margins(x=0)
+    if num_epochs is not None:
+        ax_lr.set_xlim(0, num_epochs)
+
+    if show:
+        plt.show()
+    return fig
 
 
-def plot_flow_field(net, epoch, nu, axes=None, N=64, step=4):
+def plot_flow_field(net, epoch, nu, axes=None, N=64, step=4, run_label=""):
     """Render vorticity+quiver | pressure+(-∇p) | streamlines into `axes`.
 
     If axes is None a new (1×3) figure is created and returned.
@@ -266,6 +304,7 @@ def plot_flow_field(net, epoch, nu, axes=None, N=64, step=4):
     from torch.autograd import grad
 
     black_red = LinearSegmentedColormap.from_list("black_red", ["black", "red"])
+    fs = 14  # base font size
 
     xs, ys, U, V, P = eval_flow_field(net, N=N)
 
@@ -287,32 +326,35 @@ def plot_flow_field(net, epoch, nu, axes=None, N=64, step=4):
         fig = axes[0].get_figure()
 
     ax_q, ax_p, ax_s = axes
-
     for ax in axes:
         ax.cla()
 
-    cf_w = ax_q.contourf(xs, ys, omega.T, levels=50, cmap="RdBu_r", alpha=0.7)
-    plt.colorbar(cf_w, ax=ax_q, label="ω")
+    cf_w = ax_q.contourf(xs, ys, omega.T, levels=np.linspace(-70, 30, 51), cmap="RdBu_r", alpha=0.7, vmin=-70, vmax=30)
+    plt.colorbar(cf_w, ax=ax_q, label="ω").ax.tick_params(labelsize=fs-1)
     with np.errstate(invalid='ignore'):
         ax_q.quiver(xs[::step], ys[::step], U[::step, ::step].T, V[::step, ::step].T, color='k', alpha=0.6)
-    fig.suptitle(f"Re = {round(1/nu)}    Epoch {epoch}", fontsize=16)
-    ax_q.set_title("Vorticity ω + velocity vectors")
-    ax_q.set_xlabel("x"); ax_q.set_ylabel("y")
+    title = f"Re = {round(1/nu)}    Epoch {epoch}" if not run_label else f"Epoch {epoch}\n{run_label}"
+    fig.suptitle(title, fontsize=fs+8)
+    ax_q.set_title("Vorticity ω + velocity vectors", fontsize=fs)
+    ax_q.set_xlabel("x", fontsize=fs); ax_q.set_ylabel("y", fontsize=fs)
+    ax_q.tick_params(labelsize=fs-1)
     ax_q.set_xlim(0, 1); ax_q.set_ylim(0, 1); ax_q.set_aspect("equal")
 
-    cf = ax_p.contourf(xs, ys, P.T, levels=50, cmap="RdBu_r")
-    plt.colorbar(cf, ax=ax_p, label="p")
+    cf = ax_p.contourf(xs, ys, P.T, levels=np.linspace(-1.6, 2.2, 51), cmap="RdBu_r", vmin=-1.6, vmax=2.2)
+    plt.colorbar(cf, ax=ax_p, label="p").ax.tick_params(labelsize=fs-1)
     with np.errstate(invalid='ignore'):
         ax_p.quiver(xs[::step], ys[::step],
                     -dP_dx[::step, ::step].T, -dP_dy[::step, ::step].T,
                     mag_clipped[::step, ::step].T.flatten(), cmap=black_red, alpha=0.7)
-    ax_p.set_title("Pressure + (−∇p)")
-    ax_p.set_xlabel("x"); ax_p.set_ylabel("y")
+    ax_p.set_title("Pressure + (−∇p)", fontsize=fs)
+    ax_p.set_xlabel("x", fontsize=fs); ax_p.set_ylabel("y", fontsize=fs)
+    ax_p.tick_params(labelsize=fs-1)
     ax_p.set_xlim(0, 1); ax_p.set_ylim(0, 1); ax_p.set_aspect("equal")
 
     _plot_streamfunction(ax_s, xs, ys, U, V)
-    ax_s.set_title("Streamlines (ψ isolines)")
-    ax_s.set_xlabel("x"); ax_s.set_ylabel("y")
+    ax_s.set_title("Streamlines (ψ isolines)", fontsize=fs)
+    ax_s.set_xlabel("x", fontsize=fs); ax_s.set_ylabel("y", fontsize=fs)
+    ax_s.tick_params(labelsize=fs-1)
     ax_s.set_xlim(0, 1); ax_s.set_ylim(0, 1); ax_s.set_aspect("equal")
 
     return fig, axes

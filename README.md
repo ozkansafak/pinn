@@ -1,20 +1,11 @@
 # PINN — Lid-Driven Cavity Flow
 
 <p align="center">
-  <img src="images/lid_driven_cavity_diagram.png" width="480"/>
-</p>
-<p align="center"><em>The lid-driven cavity: a unit square filled with viscous fluid. The top wall moves at speed u = 1.0, driving a recirculating vortex inside. The three remaining walls are stationary (no-slip).</em></p>
-
-<p align="center">
   <img src="images/Re=100.gif"/>
 </p>
 <p align="center"><em>Training animation for Re=100 — evolution of the flow field and streamlines</em></p>
 
-
-A Physics Informed Neural Network (PINN) that solves the 2D incompressible Navier Stokes equations for the classic lid driven cavity problem, without finite difference or finte volume grid, directly from the governing equations and the boundary conditions.
-
-
-![Flow field at epoch 70,000 Re=100](images/epoch=70_000%20Re=100.png)
+A Physics Informed Neural Network (PINN) that solves the 2D incompressible Navier-Stokes equations for the classic lid-driven cavity problem, without a finite difference or finite volume grid, directly from the governing equations and boundary conditions.
 
 [Click for training video: Re=100_compressed.mp4](images/Re=100_compressed.mp4)
 
@@ -22,7 +13,7 @@ A Physics Informed Neural Network (PINN) that solves the 2D incompressible Navie
 
 ## The CFD Problem
 
-The lid-driven cavity is a canonical benchmark in computational fluid dynamics. The domain is a unit square [0,1]² filled with a viscous, incompressible fluid. The top wall (y=1) moves horizontally at unit velocity (u=1), while the three remaining walls are stationary. This drives an asymmetric circulating vortex inside the cavity.
+The lid-driven cavity is a canonical benchmark in computational fluid dynamics. The domain is a unit square [0,1]² filled with a viscous, incompressible fluid. The top lid (y=1) moves horizontally at unit velocity (u=1), while the three remaining walls are stationary. This drives an asymmetric circulating vortex inside the cavity.
 
 The governing equations are the incompressible Navier-Stokes equations:
 
@@ -159,16 +150,92 @@ jupyter notebook
 
 ---
 
-## Notes
+## Results
 
-**Compress the mp4 video file:**
+### Standard lid (u = 1 uniformly along the top lid)
 
-```bash
-ffmpeg -y -i images/Re=100.mp4  -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2"  -c:v libx264 -crf 32 -preset slow -pix_fmt yuv420p  images/Re=100_compressed.mp4
+<p align="center">
+  <img src="images/lid_driven_cavity_diagram.png" width="420"/>
+</p>
+<p align="center"><em>Problem setup: the top lid moves at speed u = 1.0 across its full width. The three remaining walls are stationary (no-slip). This creates a velocity discontinuity at the two top corners.</em></p>
+
+<p align="center">
+  <img src="images/epoch=70_000%20Re=100.png"/>
+</p>
+<p align="center"><em>
+
+**Row 1: Vorticity and pressure.** Left: vorticity field ω = ∂v/∂x − ∂u/∂y overlaid with streamlines (ψ-isolines with directional arrows), showing the primary recirculating vortex. Right: pressure field with −∇p vectors, capturing the pressure gradient that drives the flow.
+
+**Row 2: PDE and BC residuals.** Left: pointwise NS residual r²(x,y) across the interior — low values confirm the network satisfies the governing equations. Right: boundary condition error scattered on all four walls — the top lid shows the largest error near the singular corners.
+
+**Row 3: Cross-sectional velocity profiles.** Horizontal slices of u and v at three depths: y = 0.001 (near bottom wall, blue), y = 0.5 (mid-cavity, black), y = 0.999 (near lid, red).
+
+**Row 4: Training and evaluation loss curves.** L_PDE, L_BC, and L_p plotted on a log scale for both training collocation points and an independent evaluation set.
+</em></p>
+
+At epoch 27,000 the network predicts u = 0.7225 at (x=0.5, y=0.9609), within 2% of the Ghia et al. (1982) finite-difference benchmark value of 0.73722 for Re = 100 — a standard reference point for validating lid-driven cavity solvers.
+
 ```
+epoch  27000 | L_bc 1.273e-03 | L_pde 1.900e-03 | L_p 1.212e-07 | eval L_pde 2.322e-03
+  u(0.5, 0.9609) = 0.7225   (expect 0.73722 — Ghia et al, 1982. Re=100)
+  v(0.5, 0.9609) = 0.0120
+  p(0.5, 0.9609) = -0.0388
+  bottom (y=0) : u mean=-0.0062  std=0.0021   v mean=0.0010  std=0.0014
+  left   (x=0) : u mean=-0.0006  std=0.0452   v mean=0.0025  std=0.0136
+  right  (x=1) : u mean=-0.0040  std=0.0393   v mean=-0.0032  std=0.0136
+  ```
+---
 
-**Convert to GIF (plays once, no loop):**
+### Sigmoid-smoothed lid (u ramps from 0 at the corners)
+
+<p align="center">
+  <img src="images/lid_driven_cavity_diagram_sigmoid.png" width="420"/>
+</p>
+<p align="center"><em>Modified boundary condition: the lid velocity is smoothed with sigmoid ramps over the left and right 10% of the top lid, eliminating the velocity discontinuity at the corners and making the problem more amenable to a neural network solution.</em></p>
+
+<p align="center">
+  <img src="images/epoch%2025_000,%20Re=100,%20sigmoid%20u.png"/>
+</p>
+<p align="center"><em>Flow field at epoch 25,000 with the sigmoid lid BC (Re = 100). The smoothed corners allow the network to converge faster and to a cleaner solution compared to the discontinuous lid.</em></p>
+
+---
+
+## Videos
+
+Training animations are saved to `videos/`. Each run produces two files: a flow field video (3-panel, every 10 epochs) and a dashboard video (4-row, every 100 epochs).
+
+| File | Contents | Duration |
+|------|----------|----------|
+| `videos/flow_Re100_uniformU_1xhidden.mp4` | Vorticity, pressure, streamlines | ~8 s @ 250 fps |
+| `videos/flow_Re100_uniformU_1xhidden.gif` | Same, 960px wide GIF | ~8 s @ 50 fps |
+| `videos/dashboard_Re100_uniformU_1xhidden.mp4` | Full 4-row dashboard | ~8 s @ 25 fps |
+| `videos/dashboard_Re100_uniformU_1xhidden.gif` | Same, 1200px wide GIF | ~8 s @ 15 fps |
+
+**Reproduce with ffmpeg:**
 
 ```bash
-ffmpeg -y -i images/Re=100_compressed.mp4  -vf "fps=6,scale=360:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse"  -loop -1  images/Re=100.gif
+# Flow field mp4 — 2001 frames (every 10 epochs) at 250 fps → ~8 s
+ls images/flow_Re100_uniformU_1xhidden/epoch=*.png | sort | \
+  while read f; do echo "file '$(pwd)/$f'"; echo "duration 0.004"; done > /tmp/frames.txt
+ffmpeg -y -f concat -safe 0 -i /tmp/frames.txt \
+  -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" \
+  -c:v libx264 -crf 28 -preset slow -pix_fmt yuv420p \
+  videos/flow_Re100_uniformU_1xhidden.mp4
+
+# Dashboard mp4 — 201 frames (every 100 epochs) at 25 fps → ~8 s
+ls images/dashboard_Re100_uniformU_1xhidden/epoch=*.png | sort | \
+  while read f; do echo "file '$(pwd)/$f'"; echo "duration 0.04"; done > /tmp/frames.txt
+ffmpeg -y -f concat -safe 0 -i /tmp/frames.txt \
+  -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" \
+  -c:v libx264 -crf 28 -preset slow -pix_fmt yuv420p \
+  videos/dashboard_Re100_uniformU_1xhidden.mp4
+
+# GIFs (960px and 1200px wide, same ~8 s duration)
+ffmpeg -y -i videos/flow_Re100_uniformU_1xhidden.mp4 \
+  -vf "fps=50,scale=960:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" \
+  -loop -1 videos/flow_Re100_uniformU_1xhidden.gif
+
+ffmpeg -y -i videos/dashboard_Re100_uniformU_1xhidden.mp4 \
+  -vf "fps=15,scale=1200:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" \
+  -loop -1 videos/dashboard_Re100_uniformU_1xhidden.gif
 ```

@@ -9,6 +9,7 @@ nohup.out
 .ipynb_checkpoints/
 .python-version
 .DS_Store
+.vscode/
 
 # Virtual environments
 .venv
@@ -17,3 +18,4 @@ nohup.out
 images/Re=*/
 !images/Re=*.mp4
 !images/Re=*.gif
+!images/Re=*_viz/
