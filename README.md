@@ -1,8 +1,16 @@
 # PINN — Lid-Driven Cavity Flow
 
+
+
+![Training animation Re=100](images/Re=100.gif)
+
+Training Animation for Re=100, that shows the evolution of the flow field and the streamline function
+
+
 A Physics Informed Neural Network (PINN) that solves the 2D incompressible Navier Stokes equations for the classic lid driven cavity problem, without finite difference or finte volume grid, directly from the governing equations and the boundary conditions.
 
-![Flow field at epoch 35,608 Re=100](images/epoch=70_000%20Re=100.png)
+
+![Flow field at epoch 70,000 Re=100](images/epoch=70_000%20Re=100.png)
 
 [Click for training video: Re=100_compressed.mp4](images/Re=100_compressed.mp4)
 
@@ -149,11 +157,14 @@ jupyter notebook
 
 ## Notes
 
-**Compressing the animation:**
+**Compress the mp4 video file:**
 
 ```bash
-ffmpeg -y -i images/Re=100.mp4 \
-  -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" \
-  -c:v libx264 -crf 32 -preset slow -pix_fmt yuv420p \
-  images/Re=100_compressed.mp4
+ffmpeg -y -i images/Re=100.mp4  -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2"  -c:v libx264 -crf 32 -preset slow -pix_fmt yuv420p  images/Re=100_compressed.mp4
+```
+
+**Convert to GIF (plays once, no loop):**
+
+```bash
+ffmpeg -y -i images/Re=100_compressed.mp4  -vf "fps=6,scale=360:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse"  -loop -1  images/Re=100.gif
 ```
