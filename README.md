@@ -4,7 +4,7 @@ A Physics Informed Neural Network (PINN) that solves the 2D incompressible Navie
 
 ![Flow field at epoch 35,608 Re=100](images/epoch=70_000%20Re=100.png)
 
-[Animation — Re=100 (mp4)](images/Re=100.mp4)
+[Click for training video: Re=100_compressed.mp4](images/Re=100_compressed.mp4)
 
 ---
 
@@ -143,4 +143,17 @@ uv.lock          # Pinned package versions
 ```bash
 uv sync
 jupyter notebook
+```
+
+---
+
+## Notes
+
+**Compressing the animation:**
+
+```bash
+ffmpeg -y -i images/Re=100.mp4 \
+  -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" \
+  -c:v libx264 -crf 32 -preset slow -pix_fmt yuv420p \
+  images/Re=100_compressed.mp4
 ```
