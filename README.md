@@ -1,13 +1,16 @@
 # PINN — Lid-Driven Cavity Flow
 
-<p align="center">
-  <img src="images/Re=100.gif"/>
-</p>
-<p align="center"><em>Training animation for Re=100 — evolution of the flow field and streamlines</em></p>
-
 A Physics Informed Neural Network (PINN) that solves the 2D incompressible Navier-Stokes equations for the classic lid-driven cavity problem, without a finite difference or finite volume grid, directly from the governing equations and boundary conditions.
 
-[Click for training video: Re=100_compressed.mp4](images/Re=100_compressed.mp4)
+<p align="center">
+  <img src="images/lid_driven_cavity_diagram.png" width="252"/>
+</p>
+<p align="center"><em>Problem setup: the top lid moves at u = 1 across its full width, driving a recirculating vortex inside the unit square cavity. The three remaining walls are stationary (no-slip).</em></p>
+
+<p align="center">
+  <img src="videos/flow_Re100_uniformU_1xhidden.gif"/>
+</p>
+<p align="center"><em>Training animation — Re=100, uniform lid velocity (u=1), 1x network (12,867 parameters). Vorticity field with streamlines, pressure field with −∇p vectors, and streamfunction isolines evolving over 40,000 epochs.</em></p>
 
 ---
 
@@ -155,7 +158,7 @@ jupyter notebook
 ### Standard lid (u = 1 uniformly along the top lid)
 
 <p align="center">
-  <img src="images/lid_driven_cavity_diagram.png" width="420"/>
+  <img src="images/lid_driven_cavity_diagram.png" width="210"/>
 </p>
 <p align="center"><em>Problem setup: the top lid moves at speed u = 1.0 across its full width. The three remaining walls are stationary (no-slip). This creates a velocity discontinuity at the two top corners.</em></p>
 
@@ -189,7 +192,7 @@ epoch  27000 | L_bc 1.273e-03 | L_pde 1.900e-03 | L_p 1.212e-07 | eval L_pde 2.3
 ### Sigmoid-smoothed lid (u ramps from 0 at the corners)
 
 <p align="center">
-  <img src="images/lid_driven_cavity_diagram_sigmoid.png" width="420"/>
+  <img src="images/lid_driven_cavity_diagram_sigmoid.png" width="252"/>
 </p>
 <p align="center"><em>Modified boundary condition: the lid velocity is smoothed with sigmoid ramps over the left and right 10% of the top lid, eliminating the velocity discontinuity at the corners and making the problem more amenable to a neural network solution.</em></p>
 

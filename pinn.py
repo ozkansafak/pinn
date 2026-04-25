@@ -180,7 +180,7 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10, figw=20, 
 
     # ── Figure ─────────────────────────────────────────────────────────────
     fig = plt.figure(figsize=(figw, 22), layout='constrained')
-    fig.get_layout_engine().set(rect=[0, 0, 1, 0.96])
+    fig.get_layout_engine().set(rect=[0, 0, 1, 0.98])
     gs = fig.add_gridspec(4, 12, hspace=0.5, wspace=0.35)
     title = f"Epoch {epoch}" if not run_label else f"Epoch {epoch}\n{run_label}"
     fig.suptitle(title, fontsize=fs+3)
@@ -241,7 +241,7 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10, figw=20, 
     ax_u.set_xlabel("x", fontsize=fs); ax_u.set_ylabel("u", fontsize=fs)
     ax_u.tick_params(labelsize=fs-1)
     ax_u.margins(x=0)
-    ax_u.set_ylim(-0.2, 1.05)
+    ax_u.set_ylim(-0.33, 1.1)
     ax_u.legend(fontsize=fs-2, loc='center right')
 
     ax_v = fig.add_subplot(gs[2, 7:12])
@@ -252,7 +252,7 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10, figw=20, 
     ax_v.set_xlabel("x", fontsize=fs); ax_v.set_ylabel("v", fontsize=fs)
     ax_v.tick_params(labelsize=fs-1)
     ax_v.margins(x=0)
-    ax_v.set_ylim(-0.2, 0.16)
+    ax_v.set_ylim(-0.26, 0.2)
     ax_v.legend(fontsize=fs-2, loc='upper right')
 
     # ── Row 3: Loss curves ─────────────────────────────────────────────────
@@ -277,14 +277,16 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10, figw=20, 
 
     ax_lr = fig.add_subplot(gs[3, 9:12])
     lr_hist = histories.get('lr_history', [])
+    ax_lr.set_yscale('log')
     if et and lr_hist:
-        ax_lr.semilogy(et[::s], lr_hist[::s], c='k', alpha=0.8)
+        ax_lr.plot(et[::s], lr_hist[::s], c='k', alpha=0.8)
     ax_lr.set_title("Learning rate", fontsize=fs)
     ax_lr.set_xlabel("Epoch", fontsize=fs)
     ax_lr.tick_params(labelsize=fs-1)
     ax_lr.margins(x=0)
     if num_epochs is not None:
         ax_lr.set_xlim(0, num_epochs)
+    ax_lr.set_ylim(0.9e-6, 1.1e-3)
 
     if show:
         plt.show()

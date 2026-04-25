@@ -149,7 +149,7 @@ while epoch < num_epochs:
     train_p_loss.append(loss_p.item())
     lr_history.append(opt.param_groups[0]['lr'])
 
-    if epoch in (15_000, 20_000):
+    if epoch in (15_000, 25_000, 35_000):
         for g in opt.param_groups:
             g['lr'] /= 10
         print(f"\n*** lr dropped to {opt.param_groups[0]['lr']:.2e} at epoch {epoch} ***", flush=True)

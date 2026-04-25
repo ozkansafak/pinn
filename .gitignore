@@ -14,8 +14,4 @@ nohup.out
 # Virtual environments
 .venv
 
-# Training output images (PNGs ignored, mp4s and GIFs tracked)
-images/Re=*/
-!images/Re=*.mp4
-!images/Re=*.gif
-!images/Re=*_viz/
+images/
