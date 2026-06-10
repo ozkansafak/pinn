@@ -2,14 +2,15 @@
 # sweep_width.sh — run PINN training across 10 doubling layer widths
 #
 # Usage:
-#   bash sweep_width.sh                  # widths 4..2048, cap 60k epochs
-#   bash sweep_width.sh 16               # start from width=16
-#   bash sweep_width.sh 4 10000          # custom epoch cap
+#   bash sweep_width.sh                       # siren, widths 4..2048, cap 60k epochs
+#   bash sweep_width.sh 4 60000 siren         # explicit
+#   bash sweep_width.sh 4 60000 tanh          # tanh baseline
 
 set -euo pipefail
 
 START_WIDTH=${1:-4}
-MAX_EPOCHS=${2:-30000}
+MAX_EPOCHS=${2:-60000}
+ACTIVATION=${3:-siren}
 OUTPUT="results/width_sweep.csv"
 LOG_DIR="results/logs"
 
@@ -17,6 +18,7 @@ mkdir -p "$LOG_DIR"
 
 echo "========================================"
 echo "  PINN width sweep"
+echo "  activation  : $ACTIVATION"
 echo "  start_width : $START_WIDTH"
 echo "  max_epochs  : $MAX_EPOCHS"
 echo "  output      : $OUTPUT"
@@ -27,9 +29,9 @@ width=$START_WIDTH
 sweep_start=$(date +%s)
 
 for run in $(seq 1 10); do
-    log_file="$LOG_DIR/width_${width}.log"
+    log_file="$LOG_DIR/width_${width}_${ACTIVATION}.log"
     echo "──────────────────────────────────────────"
-    echo "  Run $run/10 — width=$width"
+    echo "  Run $run/10 — width=$width  activation=$ACTIVATION"
     echo "  Log → $log_file"
     echo "──────────────────────────────────────────"
 
@@ -38,6 +40,7 @@ for run in $(seq 1 10); do
     python train_width.py \
         --width "$width" \
         --max-epochs "$MAX_EPOCHS" \
+        --activation "$ACTIVATION" \
         --output "$OUTPUT" \
         2>&1 | tee "$log_file"
 

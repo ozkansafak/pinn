@@ -15,7 +15,7 @@ from datetime import datetime
 
 import torch
 
-from pinn import PINN, ns_residual, make_boundary_data
+from pinn import PINN, SIREN, ns_residual, make_boundary_data
 
 # ── Device ─────────────────────────────────────────────────────────────────────
 if torch.backends.mps.is_available():
@@ -56,11 +56,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--width',      type=int,   required=True)
 parser.add_argument('--max-epochs', type=int,   default=60_000)
 parser.add_argument('--output',     type=str,   default='results/width_sweep.csv')
+parser.add_argument('--activation', choices=['tanh', 'siren'], default='siren')
 args = parser.parse_args()
 
 WIDTH      = args.width
 MAX_EPOCHS = args.max_epochs
 CSV_PATH   = args.output
+ACTIVATION = args.activation
 
 # ── Fixed hyperparameters ──────────────────────────────────────────────────────
 N_b        = 1_000
@@ -69,7 +71,6 @@ N_eval     = 2_000
 EVAL_EVERY = 500          # epochs between eval_L_pde checks (feeds scheduler + stop)
 nu         = 0.01
 LID        = 'uniform'
-
 layers     = [2, WIDTH, WIDTH, WIDTH, WIDTH, 3]
 lr_initial = 1e-3 * (64 / WIDTH)   # μP-inspired: constant effective update size across widths
 lr_min     = lr_initial * 1e-3     # stop when LR drops this low
@@ -93,11 +94,15 @@ def next_run_id(path):
         rows = list(csv.DictReader(f))
     return (max(int(r['run_id']) for r in rows) + 1) if rows else 1
 
-run_id     = next_run_id(CSV_PATH)
-n_params   = sum(p.numel() for p in PINN(layers).parameters())
+run_id       = next_run_id(CSV_PATH)
+n_params     = sum(p.numel() for p in PINN(layers).parameters())
+LOSS_CSV     = f"results/loss_curves/width_{WIDTH}_{ACTIVATION}.csv"
+os.makedirs("results/loss_curves", exist_ok=True)
+LOSS_FIELDS  = ["epoch", "train_pde", "train_bc", "eval_pde", "lr"]
 
 print(f"run_id     : {run_id}")
 print(f"device     : {DEVICE}")
+print(f"activation : {ACTIVATION}")
 print(f"width      : {WIDTH}  →  layers {layers}")
 print(f"n_params   : {n_params:,}")
 print(f"lr_initial : {lr_initial:.3e}   lr_min : {lr_min:.3e}")
@@ -106,7 +111,7 @@ print(f"git_sha    : {git_sha}")
 print(flush=True)
 
 # ── Model & optimiser ──────────────────────────────────────────────────────────
-net = PINN(layers).to(DEVICE)
+net = (SIREN(layers) if ACTIVATION == 'siren' else PINN(layers)).to(DEVICE)
 opt = torch.optim.Adam(net.parameters(), lr=lr_initial)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     opt, mode='min', factor=0.3, patience=3_000 // EVAL_EVERY  # 3k-epoch stall window
@@ -166,6 +171,15 @@ while epoch < MAX_EPOCHS:
             flush=True
         )
 
+        write_header = not os.path.exists(LOSS_CSV) or os.path.getsize(LOSS_CSV) == 0
+        with open(LOSS_CSV, 'a', newline='') as f:
+            w = csv.DictWriter(f, fieldnames=LOSS_FIELDS)
+            if write_header:
+                w.writeheader()
+            w.writerow({"epoch": epoch, "train_pde": f"{avg_pde:.6e}",
+                        "train_bc": f"{avg_bc:.6e}", "eval_pde": f"{eval_L_pde:.6e}",
+                        "lr": f"{current_lr:.6e}"})
+
         if current_lr < lr_min:
             converged = True
             print(f"  → converged (lr {current_lr:.2e} < {lr_min:.2e})", flush=True)
@@ -193,7 +207,7 @@ print(f"{'='*60}", flush=True)
 
 # ── Append to CSV ──────────────────────────────────────────────────────────────
 FIELDS = [
-    'run_id', 'timestamp', 'width', 'n_params', 'epochs_run', 'converged',
+    'run_id', 'timestamp', 'activation', 'width', 'n_params', 'epochs_run', 'converged',
     'lr_initial', 'lr_final',
     'final_L_pde', 'final_L_bc', 'final_L_p', 'eval_L_pde',
     'u_ghia', 'ghia_ref', 'elapsed_min',
@@ -203,6 +217,7 @@ FIELDS = [
 row = {
     'run_id':       run_id,
     'timestamp':    datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    'activation':   ACTIVATION,
     'width':        WIDTH,
     'n_params':     n_params,
     'epochs_run':   epoch,

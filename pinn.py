@@ -1,9 +1,11 @@
+import math
 import torch
 import torch.nn as nn
 from torch.autograd import grad
 
 
 class PINN(nn.Module):
+    """Fully-connected network with Tanh activations."""
     def __init__(self, layers=[2, 64, 64, 64, 64, 3]):
         super().__init__()
         seq = []
@@ -15,7 +17,46 @@ class PINN(nn.Module):
 
     def forward(self, x, y):
         out = self.net(torch.cat([x, y], dim=1))
-        return out[:, 0:1], out[:, 1:2], out[:, 2:3]  # u, v, p
+        return out[:, 0:1], out[:, 1:2], out[:, 2:3]
+
+
+class _SIRENLayer(nn.Module):
+    def __init__(self, in_features, out_features, omega_0, is_first):
+        super().__init__()
+        self.omega_0 = omega_0
+        self.linear  = nn.Linear(in_features, out_features)
+        with torch.no_grad():
+            if is_first:
+                # input layer: keep pre-activations in [-π, π] approximately
+                self.linear.weight.uniform_(-1 / in_features, 1 / in_features)
+            else:
+                # hidden layers: preserves arcsine distribution through sin
+                bound = math.sqrt(6 / in_features) / omega_0
+                self.linear.weight.uniform_(-bound, bound)
+
+    def forward(self, x):
+        return torch.sin(self.omega_0 * self.linear(x))
+
+
+class SIREN(nn.Module):
+    """Sinusoidal Representation Network (Sitzmann et al. 2020).
+
+    Uses sin activations with initialization that preserves gradient flow
+    at any width/depth. Better suited than Tanh for wide networks.
+    omega_0=1.0 is appropriate for smooth PDE solutions (Re=100 cavity).
+    """
+    def __init__(self, layers=[2, 64, 64, 64, 64, 3], omega_0=1.0):
+        super().__init__()
+        net = []
+        for i in range(len(layers) - 2):          # all hidden layers with sin
+            net.append(_SIRENLayer(layers[i], layers[i + 1],
+                                   omega_0=omega_0, is_first=(i == 0)))
+        net.append(nn.Linear(layers[-2], layers[-1]))  # linear output
+        self.net = nn.Sequential(*net)
+
+    def forward(self, x, y):
+        out = self.net(torch.cat([x, y], dim=1))
+        return out[:, 0:1], out[:, 1:2], out[:, 2:3]
 
 
 def ns_residual(net, x, y, nu):
@@ -180,7 +221,6 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10, figw=20, 
 
     # ── Figure ─────────────────────────────────────────────────────────────
     fig = plt.figure(figsize=(figw, 22), layout='constrained')
-    fig.get_layout_engine().set(rect=[0, 0, 1, 0.98])
     gs = fig.add_gridspec(4, 12, hspace=0.5, wspace=0.35)
     title = f"Epoch {epoch}" if not run_label else f"Epoch {epoch}\n{run_label}"
     fig.suptitle(title, fontsize=fs+3)
@@ -379,6 +419,7 @@ def make_animation(snapshots, layers, nu, N=64, step=4, fps=5):
         epoch, state_dict = snapshots[frame]
         net_anim.load_state_dict(state_dict)
         plot_flow_field(net_anim, epoch, nu, axes=axes, N=N, step=step)
+        return []
 
     ani = animation.FuncAnimation(fig, update, frames=len(snapshots), interval=int(1000 / fps))
     plt.close(fig)

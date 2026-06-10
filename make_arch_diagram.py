@@ -18,7 +18,7 @@ COLORS = {
 }
 
 LAYER_LABELS = ["Input", "Hidden 1", "Hidden 2", "Hidden 3", "Hidden 4", "Output"]
-ACT_LABELS   = [None, "Tanh", "Tanh", "Tanh", "Tanh", None]
+ACT_LABELS   = [None, "tanh/sin", "tanh/sin", "tanh/sin", "tanh/sin", None]
 
 INPUT_NAMES  = ["y", "x"]   # x on top, y on bottom (ys goes bottom→top)
 OUTPUT_NAMES = ["p", "v", "u"]  # u on top, p on bottom
@@ -121,7 +121,7 @@ def main():
     )
 
     plt.tight_layout()
-    out = "images/network_architecture.png"
+    out = "assets/network_architecture.png"
     fig.savefig(out, dpi=180, bbox_inches="tight", facecolor=fig.get_facecolor())
     print(f"Saved → {out}")
     plt.close(fig)
