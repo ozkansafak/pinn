@@ -44,7 +44,7 @@ A fully-connected neural network takes a spatial coordinate `(x, y)` as input an
 Architecture: `[2, 64, 64, 64, 64, 3]` (12,867 parameters) — two input neurons, four hidden layers of 64 neurons with Tanh activations, three output neurons. Tanh is chosen over ReLU because the NS equations involve second-order derivatives, which vanish for ReLU activations.
 
 <p align="center">
-  <img src="images/network_architecture.png" width="820"/>
+  <img src="assets/network_architecture.png" width="820"/>
 </p>
 
 The network is a continuous function approximator — it represents the flow field at every point in the domain, not just on a fixed mesh.
