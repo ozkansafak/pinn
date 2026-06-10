@@ -17,12 +17,11 @@ COLORS = {
     "tanh":   "#8172B2",
 }
 
-LAYER_LABELS = ["Input\n(x, y)", "Hidden 1\n64", "Hidden 2\n64",
-                "Hidden 3\n64", "Hidden 4\n64", "Output\n(u, v, p)"]
+LAYER_LABELS = ["Input", "Hidden 1", "Hidden 2", "Hidden 3", "Hidden 4", "Output"]
 ACT_LABELS   = [None, "Tanh", "Tanh", "Tanh", "Tanh", None]
 
-INPUT_NAMES  = ["x", "y"]
-OUTPUT_NAMES = ["u", "v", "p"]
+INPUT_NAMES  = ["y", "x"]   # x on top, y on bottom (ys goes bottom→top)
+OUTPUT_NAMES = ["p", "v", "u"]  # u on top, p on bottom
 
 
 def neuron_ys(n_visible, fig_h=FIG_H):
@@ -37,7 +36,7 @@ def draw_neurons(ax, lx, ys, color, labels=None, size=800):
                    edgecolors="white", linewidths=1.4)
         if labels:
             ax.text(lx, y, labels[i], ha="center", va="center",
-                    fontsize=10, color="white", fontweight="bold", zorder=6)
+                    fontsize=14, color="white", fontweight="bold", zorder=6)
 
 
 def draw_dots(ax, lx, y_center):
@@ -65,10 +64,11 @@ def main():
     all_ys = []
     for li, lx in enumerate(LAYER_X):
         if li == 0:
-            gap = 0.55  # x and y neurons close together, centred
+            gap = 0.55
             ys = np.array([mid - gap / 2, mid + gap / 2])
         elif li == len(LAYER_X) - 1:
-            ys = neuron_ys(3)
+            gap = 0.55
+            ys = np.array([mid - gap, mid, mid + gap])
         else:
             ys = neuron_ys(SHOW_N)
         all_ys.append(ys)
@@ -94,15 +94,15 @@ def main():
 
     # ── Layer labels (below) ──────────────────────────────────────────────────
     for li, (lx, lbl) in enumerate(zip(LAYER_X, LAYER_LABELS)):
-        ax.text(lx, 0.45, lbl, ha="center", va="top", fontsize=9.5,
+        ax.text(lx, 0.45, lbl, ha="center", va="top", fontsize=16,
                 color="#333333", fontweight="bold")
 
     # ── Activation labels (above, between layers) ─────────────────────────────
     for li in range(1, len(LAYER_X) - 1):
-        mid_x = (LAYER_X[li - 1] + LAYER_X[li]) / 2 + 0.15
+        mid_x = LAYER_X[li]
         y_top = all_ys[li][-1] + 0.55
         ax.text(mid_x, y_top, ACT_LABELS[li], ha="center", va="bottom",
-                fontsize=8.5, color=COLORS["tanh"], style="italic",
+                fontsize=12, color=COLORS["tanh"], style="italic",
                 bbox=dict(boxstyle="round,pad=0.25", fc="#EDE7F6", ec=COLORS["tanh"],
                           alpha=0.85, lw=0.8))
 
@@ -111,13 +111,13 @@ def main():
                 xytext=(LAYER_X[-2] + 0.28, FIG_H / 2),
                 arrowprops=dict(arrowstyle="-|>", color="#555555", lw=1.4))
     ax.text((LAYER_X[-2] + LAYER_X[-1]) / 2, FIG_H / 2 + 0.38,
-            "Linear", ha="center", va="bottom", fontsize=8.5,
+            "Linear", ha="center", va="bottom", fontsize=12,
             color="#555555", style="italic")
 
     # ── Title ─────────────────────────────────────────────────────────────────
     ax.set_title(
         "PINN Architecture  ·  [2 → 64 → 64 → 64 → 64 → 3]  ·  12,867 parameters",
-        fontsize=13, fontweight="bold", pad=12, color="#222222"
+        fontsize=15, fontweight="bold", pad=12, color="#222222"
     )
 
     plt.tight_layout()
