@@ -1,8 +1,6 @@
 """Generate a neural network architecture diagram for the PINN and save to images/."""
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib.patches import FancyArrowPatch
 
 # ── Layout constants ───────────────────────────────────────────────────────────
 LAYER_X = [0.0, 1.8, 3.4, 5.0, 6.6, 8.4]          # x position of each layer
@@ -63,10 +61,12 @@ def main():
     fig.patch.set_facecolor("#F8F8F8")
 
     # ── Pre-compute visible neuron positions ──────────────────────────────────
+    mid = FIG_H / 2
     all_ys = []
     for li, lx in enumerate(LAYER_X):
         if li == 0:
-            ys = neuron_ys(2)
+            gap = 0.55  # x and y neurons close together, centred
+            ys = np.array([mid - gap / 2, mid + gap / 2])
         elif li == len(LAYER_X) - 1:
             ys = neuron_ys(3)
         else:
@@ -119,15 +119,6 @@ def main():
         "PINN Architecture  ·  [2 → 64 → 64 → 64 → 64 → 3]  ·  12,867 parameters",
         fontsize=13, fontweight="bold", pad=12, color="#222222"
     )
-
-    # ── Legend ────────────────────────────────────────────────────────────────
-    legend_patches = [
-        mpatches.Patch(color=COLORS["input"],  label="Input layer  (x, y)"),
-        mpatches.Patch(color=COLORS["hidden"], label="Hidden layers  (64 × Tanh) × 4"),
-        mpatches.Patch(color=COLORS["output"], label="Output layer  (u, v, p)"),
-    ]
-    ax.legend(handles=legend_patches, loc="upper left", fontsize=9,
-              framealpha=0.9, edgecolor="#CCCCCC")
 
     plt.tight_layout()
     out = "images/network_architecture.png"
