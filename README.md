@@ -43,6 +43,10 @@ A fully-connected neural network takes a spatial coordinate `(x, y)` as input an
 
 Architecture: `[2, 64, 64, 64, 64, 3]` (12,867 parameters) — two input neurons, four hidden layers of 64 neurons with Tanh activations, three output neurons. Tanh is chosen over ReLU because the NS equations involve second-order derivatives, which vanish for ReLU activations.
 
+<p align="center">
+  <img src="images/network_architecture.png" width="820"/>
+</p>
+
 The network is a continuous function approximator — it represents the flow field at every point in the domain, not just on a fixed mesh.
 
 ---
@@ -135,13 +139,41 @@ To evaluate `L_PDE` at inference time (e.g. on a large point cloud for a high-fi
 
 ---
 
+## Width Sweep Experiment
+
+`sweep_width.sh` trains 10 networks in sequence, doubling the hidden-layer width each time (4 → 8 → 16 → … → 2048), to measure how accuracy scales with model capacity.
+
+```bash
+bash sweep_width.sh              # default: start_width=4, max_epochs=30000
+bash sweep_width.sh 16           # start from width=16
+bash sweep_width.sh 4 10000      # custom epoch cap
+```
+
+Each run calls `train_width.py --width W`, which:
+- Builds `[2, W, W, W, W, 3]` and trains with `lr = 1e-3 × (64/W)` — LR scales inversely with width (μP-inspired) so training dynamics stay comparable across sizes.
+- Uses `ReduceLROnPlateau(factor=0.3, patience=2000)` instead of hard-coded epoch drops, so each run self-terminates when gains stall (stop criterion: `lr < lr_initial × 1e-3`).
+- Appends one row to `results/width_sweep.csv` and logs stdout to `results/logs/width_{W}.log`.
+
+**CSV columns:** `run_id, timestamp, width, n_params, epochs_run, converged, lr_initial, lr_final, final_L_pde, final_L_bc, final_L_p, eval_L_pde, u_ghia, ghia_ref, elapsed_min, lid, git_sha`
+
+**Planned plots from the sweep:**
+- `eval_L_pde` vs `n_params` (log-log) — residual quality vs. capacity
+- `|u_ghia − 0.73722|` vs `n_params` — Ghia accuracy vs. capacity
+- `eval_L_pde` vs `elapsed_min` with width annotated — cost vs. accuracy tradeoff
+
+---
+
 ## File Structure
 
 ```
-pinn.py          # PINN model, NS residual, data helpers
-notebook.ipynb   # Training driver, visualisation
-pyproject.toml   # Dependencies
-uv.lock          # Pinned package versions
+pinn.py            # PINN model, NS residual, data helpers
+train.py           # Full training run (uniform/sigmoid × 1x/2x)
+train_width.py     # Single width-sweep run
+sweep_width.sh     # Orchestrator: 10 doubling widths in sequence
+notebook.ipynb     # Training driver, visualisation
+results/           # width_sweep.csv + per-run logs
+pyproject.toml     # Dependencies
+uv.lock            # Pinned package versions
 ```
 
 ## Setup
