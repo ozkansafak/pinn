@@ -128,7 +128,7 @@ We train 10 networks doubling width from 4 → 2048, with both tanh and sin acti
 <p align="center">
   <img src="assets/error_vs_width.png" width="820"/>
 </p>
-<p align="center"><em>Percent velocity error vs layer width. tanh degrades at w≥128; sin errors decrease consistently to 0.23% at w=1024.</em></p>
+<p align="center"><em>Percent velocity error vs layer width. tanh degrades at w≥128; sin network peaks at w=1024 (0.23% error) then degrades at w=2048.</em></p>
 
 #### tanh baseline
 
@@ -142,7 +142,7 @@ We train 10 networks doubling width from 4 → 2048, with both tanh and sin acti
 | 128 | 50,307 | 26,500 | 8.131e-03 | 0.6922 | **0.0450 ↑** |
 | 256 | 198,915 | 22,000 | 1.648e-02 | 0.5954 | **0.1418 ↑** |
 
-#### sin network sweep (width 2048 in progress)
+#### sin network sweep
 
 | Width | Params | N_f | Epochs | eval_L_pde | u_ghia | Error vs Ghia |
 |------:|-------:|----:|-------:|-----------:|-------:|--------------:|
@@ -155,7 +155,7 @@ We train 10 networks doubling width from 4 → 2048, with both tanh and sin acti
 | 256 | 198,915 | 10,000 | 38,500 | 1.962e-03 | 0.7416 | 0.0044 |
 | 512 | 791,043 | 10,000 | 43,000 | 1.456e-03 | 0.7393 | 0.0021 |
 | 1024 | 3,154,947 | 10,000 | 39,000 | 1.914e-03 | 0.7389 | **0.0017 ← best** |
-| 2048 | — | 10,000 | — | — | — | running... |
+| 2048 | 12,601,347 | 10,000 | 43,000 | 3.548e-03 | 0.7521 | **0.0148 ↑** |
 
 `u_ghia` is the predicted u-velocity at `(x=0.5, y=0.9609)` — the vertical centerline just below the lid — compared against the Ghia et al. (1982) reference value of **0.73722** at Re=100.
 
