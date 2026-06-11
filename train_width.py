@@ -32,21 +32,21 @@ def _make_collocation(n, device):
     return x, y
 
 
-def _eval_losses(net, nu, n=2_000, device=DEVICE):
+def _eval_losses(model, nu, n=2_000, device=DEVICE):
     x, y = _make_collocation(n, device)
-    r_x, r_y, r_c = ns_residual(net, x, y, nu)
+    r_x, r_y, r_c = ns_residual(model, x, y, nu)
     l_pde = (r_x**2 + r_y**2 + r_c**2).mean().item()
 
     x_bc, y_bc, u_bc, v_bc = make_boundary_data(n // 4, smooth_lid=False)
     x_bc, y_bc = x_bc.to(device), y_bc.to(device)
     u_bc, v_bc = u_bc.to(device), v_bc.to(device)
     with torch.no_grad():
-        u_p, v_p, _ = net(x_bc, y_bc)
+        u_p, v_p, _ = model(x_bc, y_bc)
     l_bc = ((u_p - u_bc)**2 + (v_p - v_bc)**2).mean().item()
 
     with torch.no_grad():
         t = torch.tensor([[0.5]], device=device)
-        _, _, p_mid = net(t, t)
+        _, _, p_mid = model(t, t)
     l_p = p_mid.item() ** 2
 
     return l_pde, l_bc, l_p
@@ -111,8 +111,8 @@ print(f"git_sha    : {git_sha}")
 print(flush=True)
 
 # ── Model & optimiser ──────────────────────────────────────────────────────────
-net = (SIREN(layers) if ACTIVATION == 'siren' else PINN(layers)).to(DEVICE)
-opt = torch.optim.Adam(net.parameters(), lr=lr_initial)
+model = (SIREN(layers) if ACTIVATION == 'siren' else PINN(layers)).to(DEVICE)
+opt = torch.optim.Adam(model.parameters(), lr=lr_initial)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     opt, mode='min', factor=0.3, patience=3_000 // EVAL_EVERY  # 3k-epoch stall window
 )
@@ -136,14 +136,14 @@ while epoch < MAX_EPOCHS:
     u_bc, v_bc = u_bc.to(DEVICE), v_bc.to(DEVICE)
     x_f, y_f = _make_collocation(N_f, DEVICE)
 
-    u_p, v_p, _ = net(x_bc, y_bc)
+    u_p, v_p, _ = model(x_bc, y_bc)
     loss_bc = ((u_p - u_bc)**2 + (v_p - v_bc)**2).mean()
 
-    r_x, r_y, r_c = ns_residual(net, x_f, y_f, nu)
+    r_x, r_y, r_c = ns_residual(model, x_f, y_f, nu)
     loss_pde = (r_x**2 + r_y**2 + r_c**2).mean()
 
     t = torch.tensor([[0.5]], device=DEVICE)
-    _, _, p_mid = net(t, t)
+    _, _, p_mid = model(t, t)
     loss_p = p_mid**2
 
     loss = 10 * loss_bc + loss_pde + 10 * loss_p
@@ -155,7 +155,7 @@ while epoch < MAX_EPOCHS:
     acc_p   += loss_p.item()
 
     if epoch % EVAL_EVERY == 0:
-        eval_L_pde, eval_L_bc, eval_L_p = _eval_losses(net, nu, n=N_eval, device=DEVICE)
+        eval_L_pde, eval_L_bc, eval_L_p = _eval_losses(model, nu, n=N_eval, device=DEVICE)
         scheduler.step(eval_L_pde)
         current_lr = opt.param_groups[0]['lr']
 
@@ -186,9 +186,9 @@ while epoch < MAX_EPOCHS:
             break
 
 # ── Final evaluation ───────────────────────────────────────────────────────────
-final_L_pde, final_L_bc, final_L_p = _eval_losses(net, nu, n=N_eval, device=DEVICE)
+final_L_pde, final_L_bc, final_L_p = _eval_losses(model, nu, n=N_eval, device=DEVICE)
 with torch.no_grad():
-    u_ghia_pred, _, _ = net(
+    u_ghia_pred, _, _ = model(
         torch.tensor([[0.5]], device=DEVICE),
         torch.tensor([[0.9609]], device=DEVICE),
     )

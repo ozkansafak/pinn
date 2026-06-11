@@ -1,4 +1,4 @@
-# PINN — Lid-Driven Cavity Flow
+# PINN, Lid Driven Cavity Flow
 
 A neural network trained to solve a fluid flow problem by satisfying the governing physics equations directly — no mesh, no simulation.
 
@@ -28,22 +28,22 @@ A neural network trained to solve a fluid flow problem by satisfying the governi
 
 The solution must satisfy the incompressible Navier-Stokes (NS) equations. *Incompressible* means the fluid density is constant (∇·u = 0). The Reynolds number Re=100 (ν=0.01) characterizes how viscous the fluid is; at Re=100 the flow is smooth and laminar.
 
-**x-momentum:**
+**x direction momentum:**
 $$u \frac{\partial u}{\partial x} + v \frac{\partial u}{\partial y} = -\frac{\partial p}{\partial x} + \nu \left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right)$$
 
-**y-momentum:**
+**y direction momentum:**
 $$u \frac{\partial v}{\partial x} + v \frac{\partial v}{\partial y} = -\frac{\partial p}{\partial y} + \nu \left(\frac{\partial^2 v}{\partial x^2} + \frac{\partial^2 v}{\partial y^2}\right)$$
 
 **Mass conservation (incompressibility):**
 $$\frac{\partial u}{\partial x} + \frac{\partial v}{\partial y} = 0$$
 
-**Boundary conditions** — fluid velocity must match the wall velocity on the wall boundary.
+**Boundary conditions:** fluid velocity must match the wall velocity on the wall boundary.
 
 ---
 
 ## The PINN Approach
 
-The network `f(x, y) → (u, v, p)` is trained by minimizing a loss that penalizes three things simultaneously:
+The network `f(x, y) → (u, v, p)` is trained by minimizing a loss with three terms:
 
 $$\mathcal{L} = 10 \cdot \mathcal{L}_{BC} + \mathcal{L}_{PDE} + 10 \cdot \mathcal{L}_{p}$$
 
@@ -62,14 +62,14 @@ u_xx = grad(u_x.sum(), x_f, create_graph=True)[0] # ∂²u/∂x²
 ```
 
 <details>
-<summary><strong>Note — why <code>requires_grad=True</code> on collocation points doesn't update them</strong></summary>
+<summary><strong>Note: why <code>requires_grad=True</code> on collocation points doesn't update them</strong></summary>
 
-The autograd computation graph and the optimizer are two separate things:
+The autograd computation graph and the optimizer are two separate objects:
 
-- **Autograd** — records the sequence of operations that produced each tensor, building a computation graph. `.backward()` traverses this graph in reverse via the chain rule to compute gradients for every participating tensor, including `x_f` and the network weights.
-- **Optimizer** — a separate object with an explicit list of tensors to update. `Adam(net.parameters())` only knows about the weights.
+- **Autograd:** Builds a computation graph to record the sequence of operations that produces each tensor. `.backward()` traverses this graph in reverse via the chain rule to compute gradients for every tensor in the graph, including `x_f` and the network weights.
+- **Optimizer:** a separate object with a list of tensors to update. `Adam(net.parameters())` only knows about the weights.
 
-So `x_f.grad` is populated after `.backward()` but never read by the optimizer. The collocation points are resampled fresh every epoch anyway.
+So `x_f.grad` is populated after `.backward()` but never used by the optimizer. The collocation points are resampled fresh every epoch anyway.
 </details>
 
 ---
@@ -77,7 +77,7 @@ So `x_f.grad` is populated after `.backward()` but never read by the optimizer. 
 ## Network Architecture
 
 ```
-(x, y)  →  [tanh/sin] × 4  →  (u, v, p)
+(x, y)  →  [sin] × 4  →  (u, v, p)
 ```
 
 Default: `[2, 64, 64, 64, 64, 3]` — 12,867 parameters. ReLU cannot be used because the NS residual requires second-order spatial derivatives, which vanish for ReLU. We experiment with tanh and sin activations.
@@ -86,19 +86,16 @@ Default: `[2, 64, 64, 64, 64, 3]` — 12,867 parameters. ReLU cannot be used bec
   <img src="assets/network_architecture.png" width="820"/>
 </p>
 
-### Sinusoidal Activation (sin network)
-
-Sitzmann et al. show that replacing tanh with sin — and using a matching initialization — gives much better derivative accuracy. This matters here because `L_PDE` requires 2nd-order spatial derivatives.
+### Sinusoidal Activation
 
 ```
 tanh network:  x  →  tanh(W x + b)
 sin  network:  x  →  sin(ω₀ · W x + b)
 ```
 
-The initialization keeps pre-activations uniformly distributed over `[−π, π]` through depth. The first layer uses `U(−1/n_in, 1/n_in)`; hidden layers use `U(−√(6/n_in)/ω₀, +√(6/n_in)/ω₀)`. We use `ω₀ = 1.0`.
+In wide tanh networks, pre-activations scale like $\sqrt{\text{width}}$, pushing neurons into saturation, and its derivatives collapse to zero, which directly hurts `L_PDE`, since the NS residual requires 2nd-order spatial derivatives.
 
-- For `sin`, every derivative is also a `sin` or `cos` — nonzero everywhere, gradient signal flows cleanly.
-- In wide tanh networks, pre-activations grow like `√width`, saturating neurons. The sin init prevents this.
+sin avoids this by a proper initialization that keeps pre-activations in `[−π, π]` at any width. The first layer uses `U(−1/n_in, 1/n_in)`. The hidden layers use $U\left(-\frac{\sqrt{6/n_\text{in}}}{\omega_0},\ +\frac{\sqrt{6/n_\text{in}}}{\omega_0}\right)$. We use `ω₀ = 1.0`. Every derivative of sin is also a sin or cos, so the gradients flow cleanly throughout the network.
 
 <p align="center">
   <img src="assets/activation_comparison.png" width="900"/>
@@ -111,15 +108,17 @@ The initialization keeps pre-activations uniformly distributed over `[−π, π]
 
 ### Width Sweep
 
-We train 10 networks doubling width from 4 → 2048, with both tanh and sin activations, to measure how accuracy scales with capacity.
+We train 10 networks with doubling width from 4 to 2048, with both tanh and sin activations, and measure how accuracy scales with model size.
 
 - LR scales as `lr = 1e-3 × (64/W)` — μP-inspired, keeps effective update magnitude constant across widths
-- Self-terminating via `ReduceLROnPlateau(factor=0.3, patience=3000 epochs)` when `lr < lr_initial × 1e-3`
+- Training terminates automatically via `ReduceLROnPlateau(factor=0.3, patience=3000 epochs)` when `lr < lr_initial × 1e-3`
 
 <p align="center">
   <img src="assets/error_vs_width.png" width="820"/>
 </p>
 <p align="center"><em>Percent velocity error vs layer width. tanh degrades at w>64; sin network peaks at w=1024 (0.23% error) then degrades at w=2048.</em></p>
+
+Error decreases slowly past w=32 because N_f is held fixed at 10,000 while model size grows ~4× per step; by Chinchilla scaling, $N_f \propto N_\text{params}$, so the collocation budget should grow proportionally with the model.
 
 #### sin network sweep
 
@@ -136,7 +135,7 @@ We train 10 networks doubling width from 4 → 2048, with both tanh and sin acti
 | 1024 | 3.2M | 10,000 | 39,000 | 6.2 h | 1.914e-03 | 0.7389 | 0.0017 |
 | 2048 | 12.6M | 10,000 | 43,000 | 23.8 h | 3.548e-03 | 0.7521 | 0.0148 |
 
-All runs on Apple Silicon GPU (MPS). `u_ghia` is the predicted u-velocity at `(x=0.5, y=0.9609)`, compared against the Ghia et al. (1982) reference value of 0.73722 at Re=100. An important thing to note is the error decreases slowly past w=32 because N_f is held fixed at 10,000 while model size grows ~4× per step; by Chinchilla scaling, N_f ∝ N_params, so the collocation budget should grow proportionally with the model. The percent velocity error decreasing more slowly than an exponential decay also suggests the data size should be increased particularly after w=64.
+All runs on Apple Silicon GPU (MPS). `u_ghia` is the predicted u-velocity at `(x=0.5, y=0.9609)`, compared against the Ghia et al. (1982) reference value of 0.73722 at Re=100.
 
 ---
 

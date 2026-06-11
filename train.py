@@ -86,8 +86,8 @@ print(f"Dash dir   : {viz_dir}")
 print()
 
 # ── State ──────────────────────────────────────────────────────────────────
-net = (SIREN(layers) if ACTIVATION == 'siren' else PINN(layers)).to(DEVICE)
-opt = torch.optim.Adam(net.parameters(), lr=lr_initial)
+model = (SIREN(layers) if ACTIVATION == 'siren' else PINN(layers)).to(DEVICE)
+opt = torch.optim.Adam(model.parameters(), lr=lr_initial)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     opt, mode='min', factor=0.3, patience=3_000 // EVAL_EVERY
 )
@@ -111,18 +111,18 @@ histories = {
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 def save_frame(epoch):
-    l_pde, l_bc, l_p = eval_all_losses(net, nu, N_eval=N_eval_pde, smooth_lid=smooth_lid)
+    l_pde, l_bc, l_p = eval_all_losses(model, nu, N_eval=N_eval_pde, smooth_lid=smooth_lid)
     epochs_eval.append(epoch)
     eval_pde_loss.append(l_pde)
     eval_bc_loss.append(l_bc)
     eval_p_loss.append(l_p)
 
-    fig, _ = plot_flow_field(net, epoch, nu, run_label=run_label)
+    fig, _ = plot_flow_field(model, epoch, nu, run_label=run_label)
     fig.savefig(f"{img_dir}/epoch={epoch:06d}.png", dpi=80, bbox_inches='tight')
     plt.close(fig)
 
     if epoch % 100 == 0:
-        fig2 = visualize(net, epoch, histories, nu, show=False, run_label=run_label, num_epochs=num_epochs)
+        fig2 = visualize(model, epoch, histories, nu, show=False, run_label=run_label, num_epochs=num_epochs)
         fig2.savefig(f"{viz_dir}/epoch={epoch:06d}.png", dpi=60, bbox_inches='tight')
         plt.close(fig2)
 
@@ -131,12 +131,12 @@ def log_stats(epoch, loss_bc, loss_pde, loss_p):
     print(f"\nepoch {epoch:>6d} | L_bc {loss_bc.item():.3e} | L_pde {loss_pde.item():.3e} | "
           f"L_p {loss_p.item():.3e} | eval L_pde {eval_pde_loss[-1]:.3e}")
     with torch.no_grad():
-        u_pred, _, _ = net(torch.tensor([[0.5]], device=DEVICE), torch.tensor([[0.9609]], device=DEVICE))
+        u_pred, _, _ = model(torch.tensor([[0.5]], device=DEVICE), torch.tensor([[0.9609]], device=DEVICE))
         t_w = torch.linspace(0, 1, 1_000, device=DEVICE).unsqueeze(1)
         z_w, o_w = torch.zeros_like(t_w), torch.ones_like(t_w)
-        u_b, v_b, _ = net(t_w, z_w)
-        u_l, v_l, _ = net(z_w, t_w)
-        u_r, v_r, _ = net(o_w, t_w)
+        u_b, v_b, _ = model(t_w, z_w)
+        u_l, v_l, _ = model(z_w, t_w)
+        u_r, v_r, _ = model(o_w, t_w)
     print(f"  u(0.5, 0.9609) = {u_pred.item():.4f}   (expect {ghia_ref:.5f} — Ghia et al. Re={Re})")
     for name, u, v in [('bottom (y=0)', u_b, v_b), ('left   (x=0)', u_l, v_l), ('right  (x=1)', u_r, v_r)]:
         print(f"  {name} : u mean={u.mean():.4f}  std={u.std():.4f}   "
@@ -160,13 +160,13 @@ while epoch < num_epochs:
     x_f, y_f = make_collocation_points(N_f)
     x_f, y_f = x_f.to(DEVICE), y_f.to(DEVICE)
 
-    u_p, v_p, _ = net(x_bc, y_bc)
+    u_p, v_p, _ = model(x_bc, y_bc)
     loss_bc = ((u_p - u_bc)**2 + (v_p - v_bc)**2).mean()
 
-    r_x, r_y, r_c = ns_residual(net, x_f, y_f, nu)
+    r_x, r_y, r_c = ns_residual(model, x_f, y_f, nu)
     loss_pde = (r_x**2 + r_y**2 + r_c**2).mean()
 
-    _, _, p_mid = net(torch.tensor([[0.5]], device=DEVICE), torch.tensor([[0.5]], device=DEVICE))
+    _, _, p_mid = model(torch.tensor([[0.5]], device=DEVICE), torch.tensor([[0.5]], device=DEVICE))
     loss_p = p_mid**2
 
     loss = 10 * loss_bc + loss_pde + 10 * loss_p
@@ -181,7 +181,7 @@ while epoch < num_epochs:
     lr_history.append(current_lr)
 
     if epoch % EVAL_EVERY == 0:
-        l_pde_eval, _, _ = eval_all_losses(net, nu, N_eval=N_eval_pde, smooth_lid=smooth_lid)
+        l_pde_eval, _, _ = eval_all_losses(model, nu, N_eval=N_eval_pde, smooth_lid=smooth_lid)
         scheduler.step(l_pde_eval)
         current_lr = opt.param_groups[0]['lr']
         elapsed = (time.perf_counter() - t_start) / 60

@@ -13,10 +13,10 @@ class PINN(nn.Module):
             seq += [nn.Linear(layers[i], layers[i + 1])]
             if i < len(layers) - 2:
                 seq += [nn.Tanh()]
-        self.net = nn.Sequential(*seq)
+        self.model = nn.Sequential(*seq)
 
     def forward(self, x, y):
-        out = self.net(torch.cat([x, y], dim=1))
+        out = self.model(torch.cat([x, y], dim=1))
         return out[:, 0:1], out[:, 1:2], out[:, 2:3]
 
 
@@ -47,20 +47,20 @@ class SIREN(nn.Module):
     """
     def __init__(self, layers=[2, 64, 64, 64, 64, 3], omega_0=1.0):
         super().__init__()
-        net = []
+        seq = []
         for i in range(len(layers) - 2):          # all hidden layers with sin
-            net.append(_SIRENLayer(layers[i], layers[i + 1],
+            seq.append(_SIRENLayer(layers[i], layers[i + 1],
                                    omega_0=omega_0, is_first=(i == 0)))
-        net.append(nn.Linear(layers[-2], layers[-1]))  # linear output
-        self.net = nn.Sequential(*net)
+        seq.append(nn.Linear(layers[-2], layers[-1]))  # linear output
+        self.model = nn.Sequential(*seq)
 
     def forward(self, x, y):
-        out = self.net(torch.cat([x, y], dim=1))
+        out = self.model(torch.cat([x, y], dim=1))
         return out[:, 0:1], out[:, 1:2], out[:, 2:3]
 
 
-def ns_residual(net, x, y, nu):
-    u, v, p = net(x, y)
+def ns_residual(model, x, y, nu):
+    u, v, p = model(x, y)
     u_x  = grad(u.sum(), x, create_graph=True)[0]
     u_y  = grad(u.sum(), y, create_graph=True)[0]
     u_xx = grad(u_x.sum(), x, create_graph=True)[0]
@@ -102,22 +102,22 @@ def make_collocation_points(N_f=10_000):
     return x_f, y_f
 
 
-def eval_all_losses(net, nu, N_eval=2_000, smooth_lid=True):
+def eval_all_losses(model, nu, N_eval=2_000, smooth_lid=True):
     # L_PDE: fresh interior collocation points
     x = torch.rand(N_eval, 1, requires_grad=True)
     y = torch.rand(N_eval, 1, requires_grad=True)
-    r_x, r_y, r_c = ns_residual(net, x, y, nu)
+    r_x, r_y, r_c = ns_residual(model, x, y, nu)
     l_pde = (r_x**2 + r_y**2 + r_c**2).mean().item()
 
     # L_BC: fresh boundary points
     x_bc, y_bc, u_bc, v_bc = make_boundary_data(N_eval // 4, smooth_lid=smooth_lid)
     with torch.no_grad():
-        u_p, v_p, _ = net(x_bc, y_bc)
+        u_p, v_p, _ = model(x_bc, y_bc)
     l_bc = ((u_p - u_bc)**2 + (v_p - v_bc)**2).mean().item()
 
     # L_p: fixed point — same as training
     with torch.no_grad():
-        _, _, p_mid = net(torch.tensor([[0.5]]), torch.tensor([[0.5]]))
+        _, _, p_mid = model(torch.tensor([[0.5]]), torch.tensor([[0.5]]))
     l_p = p_mid.item() ** 2
 
     return l_pde, l_bc, l_p
@@ -149,7 +149,7 @@ def _plot_streamfunction(ax, xs, ys, U, V, psi_levels=None):
                                         lw=0.8, mutation_scale=10))
 
 
-def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10, figw=20, show=True, run_label="", num_epochs=None):
+def visualize(model, epoch, histories, nu, N=64, N_res=32, step=4, s=10, figw=20, show=True, run_label="", num_epochs=None):
     """Plot flow field, residuals, cross-sections, and loss curves in one figure.
 
     histories: dict with keys
@@ -167,12 +167,12 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10, figw=20, 
     fs = 16  # base font size
 
     # ── Flow field on N×N grid ──────────────────────────────────────────────
-    xs, ys, U, V, P = eval_flow_field(net, N=N)
+    xs, ys, U, V, P = eval_flow_field(model, N=N)
 
     # Vorticity via autograd
     x_flat = torch.tensor(xs.repeat(N).reshape(N*N, 1), dtype=torch.float32, requires_grad=True)
     y_flat = torch.tensor(np.tile(ys, N).reshape(N*N, 1), dtype=torch.float32, requires_grad=True)
-    u_out, v_out, _ = net(x_flat, y_flat)
+    u_out, v_out, _ = model(x_flat, y_flat)
     du_dy = grad(u_out.sum(), y_flat, retain_graph=True, create_graph=False)[0]
     dv_dx = grad(v_out.sum(), x_flat, create_graph=False)[0]
     omega = (dv_dx - du_dy).reshape(N, N).detach().numpy()
@@ -187,7 +187,7 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10, figw=20, 
     Xr, Yr = torch.meshgrid(xs_r, ys_r, indexing='ij')
     x_r = Xr.reshape(-1, 1).requires_grad_(True)
     y_r = Yr.reshape(-1, 1).requires_grad_(True)
-    r_x, r_y, r_c = ns_residual(net, x_r, y_r, nu)
+    r_x, r_y, r_c = ns_residual(model, x_r, y_r, nu)
     pde_res = (r_x**2 + r_y**2 + r_c**2).reshape(N_res, N_res).detach().numpy()
 
     # ── BC residual on all four walls ──────────────────────────────────────
@@ -205,9 +205,9 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10, figw=20, 
     N_sec = 5_000
     x_sec = torch.linspace(0, 1, N_sec).unsqueeze(1)
     with torch.no_grad():
-        u_sec,     v_sec,     _ = net(x_sec, torch.full((N_sec, 1), 0.5))
-        u_sec_lid, v_sec_lid, _ = net(x_sec, torch.full((N_sec, 1), 0.999))
-        u_sec_bot, v_sec_bot, _ = net(x_sec, torch.full((N_sec, 1), 0.001))
+        u_sec,     v_sec,     _ = model(x_sec, torch.full((N_sec, 1), 0.5))
+        u_sec_lid, v_sec_lid, _ = model(x_sec, torch.full((N_sec, 1), 0.999))
+        u_sec_bot, v_sec_bot, _ = model(x_sec, torch.full((N_sec, 1), 0.001))
     x_sec      = x_sec.squeeze().numpy()
     u_sec      = u_sec.squeeze().numpy()
     v_sec      = v_sec.squeeze().numpy()
@@ -260,7 +260,7 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10, figw=20, 
     colors_wall = ['tab:blue', 'tab:red', 'tab:green', 'tab:orange']
     with torch.no_grad():
         for (xw, yw, u_bc, v_bc, label), col in zip(walls, colors_wall):
-            u_p, v_p, _ = net(xw, yw)
+            u_p, v_p, _ = model(xw, yw)
             bc_err = ((u_p - u_bc)**2 + (v_p - v_bc)**2).squeeze().numpy()
             xw_np = xw.squeeze().numpy()
             yw_np = yw.squeeze().numpy()
@@ -333,7 +333,7 @@ def visualize(net, epoch, histories, nu, N=64, N_res=32, step=4, s=10, figw=20, 
     return fig
 
 
-def plot_flow_field(net, epoch, nu, axes=None, N=64, step=4, run_label=""):
+def plot_flow_field(model, epoch, nu, axes=None, N=64, step=4, run_label=""):
     """Render vorticity+quiver | pressure+(-∇p) | streamlines into `axes`.
 
     If axes is None a new (1×3) figure is created and returned.
@@ -348,12 +348,12 @@ def plot_flow_field(net, epoch, nu, axes=None, N=64, step=4, run_label=""):
     black_red = LinearSegmentedColormap.from_list("black_red", ["black", "red"])
     fs = 14  # base font size
 
-    xs, ys, U, V, P = eval_flow_field(net, N=N)
+    xs, ys, U, V, P = eval_flow_field(model, N=N)
 
     # Vorticity via autograd
     x_flat = torch.tensor(xs.repeat(N).reshape(N * N, 1), dtype=torch.float32, requires_grad=True)
     y_flat = torch.tensor(np.tile(ys, N).reshape(N * N, 1), dtype=torch.float32, requires_grad=True)
-    u_out, v_out, _ = net(x_flat, y_flat)
+    u_out, v_out, _ = model(x_flat, y_flat)
     du_dy = grad(u_out.sum(), y_flat, retain_graph=True, create_graph=False)[0]
     dv_dx = grad(v_out.sum(), x_flat, create_graph=False)[0]
     omega = (dv_dx - du_dy).reshape(N, N).detach().numpy()
@@ -426,7 +426,7 @@ def make_animation(snapshots, layers, nu, N=64, step=4, fps=5):
     return ani
 
 
-def eval_flow_field(net, N=64):
+def eval_flow_field(model, N=64):
     """Evaluate u, v, p on an N×N grid over [0,1]².
     Returns xs, ys (1-D numpy), U, V, P (2-D numpy, shape N×N).
     """
@@ -434,7 +434,7 @@ def eval_flow_field(net, N=64):
     ys = torch.linspace(0, 1, N)
     X, Y = torch.meshgrid(xs, ys, indexing="ij")
     with torch.no_grad():
-        U, V, P = net(X.reshape(-1, 1), Y.reshape(-1, 1))
+        U, V, P = model(X.reshape(-1, 1), Y.reshape(-1, 1))
     U = U.reshape(N, N).numpy()
     V = V.reshape(N, N).numpy()
     P = P.reshape(N, N).numpy()
