@@ -116,7 +116,9 @@ The initialization keeps pre-activations uniformly distributed over `[−π, π]
 
 ---
 
-## Width Sweep
+## Results
+
+### Width Sweep
 
 We train 10 networks doubling width from 4 → 2048, with both tanh and sin activations, to measure how accuracy scales with capacity.
 
@@ -155,11 +157,13 @@ We train 10 networks doubling width from 4 → 2048, with both tanh and sin acti
 | 1024 | 3,154,947 | 10,000 | 39,000 | 1.914e-03 | 0.7389 | **0.0017 ← best** |
 | 2048 | — | 10,000 | — | — | — | running... |
 
-Ghia et al. (1982) reference: **u(0.5, 0.9609) = 0.73722** for Re = 100.
+`u_ghia` is the predicted u-velocity at `(x=0.5, y=0.9609)` — the vertical centerline just below the lid — compared against the Ghia et al. (1982) reference value of **0.73722** at Re=100.
 
 ---
 
-## Results
+## Appendix
+
+### Training Dashboard
 
 <p align="center">
   <img src="images/epoch=70_000%20Re=100.png"/>
