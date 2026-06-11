@@ -93,14 +93,14 @@ tanh network:  x  →  tanh(W x + b)
 sin  network:  x  →  sin(ω₀ · W x + b)
 ```
 
-In wide tanh networks, pre-activations scale like $\sqrt{\text{width}}$, pushing neurons into saturation, and its derivatives collapse to zero, which directly hurts `L_PDE`, since the NS residual requires 2nd-order spatial derivatives.
+In wide tanh networks, pre-activations scale like $\sqrt{\text{width}}$, pushing neurons into saturation. Saturated neurons have near-zero derivatives — computing $\partial^2 u / \partial x^2$ via autograd chains through activation derivatives, so when those collapse the viscous term drops out of the residual and `L_PDE` cannot be minimized.
 
-sin avoids this by a proper initialization that keeps pre-activations in `[−π, π]` at any width. The first layer uses `U(−1/n_in, 1/n_in)`. The hidden layers use $U\left(-\frac{\sqrt{6/n_\text{in}}}{\omega_0},\ +\frac{\sqrt{6/n_\text{in}}}{\omega_0}\right)$. We use `ω₀ = 1.0`. Every derivative of sin is also a sin or cos, so the gradients flow cleanly throughout the network.
+The sin activation avoids this via a matching initialization that keeps pre-activations in `[−π, π]` at any width. The first layer uses `U(−1/n_in, 1/n_in)`; hidden layers use $U\left(-\frac{\sqrt{6/n_\text{in}}}{\omega_0},\ +\frac{\sqrt{6/n_\text{in}}}{\omega_0}\right)$. We use `ω₀ = 1.0`. Every derivative of sin is also a sin or cos, so the gradients flow cleanly throughout the network.
 
 <p align="center">
   <img src="assets/activation_comparison.png" width="900"/>
 </p>
-<p align="center"><em>tanh saturates to ±1 for large inputs — its derivatives collapse to zero. sin stays oscillatory at all amplitudes.</em></p>
+<p align="center"><em>tanh saturates for large inputs. sin stays oscillatory at all amplitudes.</em></p>
 
 ---
 
@@ -108,15 +108,15 @@ sin avoids this by a proper initialization that keeps pre-activations in `[−π
 
 ### Width Sweep
 
-We train 10 networks with doubling width from 4 to 2048, with both tanh and sin activations, and measure how accuracy scales with model size.
+We train 10 networks by doubling the layer widths from 4 to 2048, with both tanh and sin activations, and measure how accuracy scales with model size.
 
 - LR scales as `lr = 1e-3 × (64/W)` — μP-inspired, keeps effective update magnitude constant across widths
 - Training terminates automatically via `ReduceLROnPlateau(factor=0.3, patience=3000 epochs)` when `lr < lr_initial × 1e-3`
 
 <p align="center">
-  <img src="assets/error_vs_width.png" width="820"/>
+  <img src="assets/error_vs_width.png" width="900"/>
 </p>
-<p align="center"><em>Percent velocity error vs layer width. tanh degrades at w>64; sin network peaks at w=1024 (0.23% error) then degrades at w=2048.</em></p>
+<p align="center"><em>Left: percent velocity error vs width — tanh degrades at w>64; sin peaks at w=1024 (0.23% error). Right: PDE residual loss vs width — sin's L_PDE worsens after w=128, likely due to insufficient N_f=10,000 collocation points for larger models.</em></p>
 
 Error decreases slowly past w=32 because N_f is held fixed at 10,000 while model size grows ~4× per step; by Chinchilla scaling, $N_f \propto N_\text{params}$, so the collocation budget should grow proportionally with the model.
 
@@ -181,4 +181,4 @@ pyproject.toml         # Dependencies
 - Sitzmann, V., Martel, J. N. P., Bergman, A. W., Lindell, D. B., & Wetzstein, G. (2020), *Implicit Neural Representations with Periodic Activation Functions.*, NeurIPS 2020. [arXiv:2006.09661](https://arxiv.org/abs/2006.09661)
 - Ghia, U., Ghia, K. N., & Shin, C. T. (1982), *High-Re solutions for incompressible flow using the Navier-Stokes equations and a multigrid method.*, Journal of Computational Physics, 48(3), 387–411. [pdf link](https://www.msaidi.ir/upload/Ghia1982.pdf?i=1)
 - Botella, O. & Peyret, R. (1998), *Benchmark Spectral Results on the Lid-Driven Cavity Flow.*, Computers & Fluids, 27, 421–433. [pdf link](https://cats2d.com/documentation/botellapeyret98.pdf) (higher-accuracy spectral benchmark for the same problem)
-- Yang, G., Hu, E. J., Babuschkin, I., Sidor, S., Liu, X., Farhi, D., ... & Gao, J. (2022), *Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer.*, arXiv:2203.03466. [arXiv:2203.03466](https://arxiv.org/pdf/2203.03466) (μP — learning rate scales as 1/width to keep update magnitude constant across network sizes.)
+- Yang, G., Hu, E. J., Babuschkin, I., Sidor, S., Liu, X., Farhi, D., ... & Gao, J. (2022), *Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer.*, arXiv:2203.03466. [arXiv:2203.03466](https://arxiv.org/pdf/2203.03466)

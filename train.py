@@ -111,7 +111,7 @@ histories = {
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 def save_frame(epoch):
-    l_pde, l_bc, l_p = eval_all_losses(model, nu, N_eval=N_eval_pde, smooth_lid=smooth_lid)
+    l_pde, l_pde_max, l_bc, l_p = eval_all_losses(model, nu, N_eval=N_eval_pde, smooth_lid=smooth_lid)
     epochs_eval.append(epoch)
     eval_pde_loss.append(l_pde)
     eval_bc_loss.append(l_bc)
@@ -181,7 +181,7 @@ while epoch < num_epochs:
     lr_history.append(current_lr)
 
     if epoch % EVAL_EVERY == 0:
-        l_pde_eval, _, _ = eval_all_losses(model, nu, N_eval=N_eval_pde, smooth_lid=smooth_lid)
+        l_pde_eval, _, _, _ = eval_all_losses(model, nu, N_eval=N_eval_pde, smooth_lid=smooth_lid)
         scheduler.step(l_pde_eval)
         current_lr = opt.param_groups[0]['lr']
         elapsed = (time.perf_counter() - t_start) / 60

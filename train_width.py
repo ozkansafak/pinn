@@ -37,6 +37,16 @@ def _eval_losses(model, nu, n=2_000, device=DEVICE):
     r_x, r_y, r_c = ns_residual(model, x, y, nu)
     l_pde = (r_x**2 + r_y**2 + r_c**2).mean().item()
 
+    # L∞ norm on dense grid
+    N_grid = 128
+    xs = torch.linspace(0.01, 0.99, N_grid, device=device)
+    ys = torch.linspace(0.01, 0.99, N_grid, device=device)
+    Xg, Yg = torch.meshgrid(xs, ys, indexing='ij')
+    x_g = Xg.reshape(-1, 1).requires_grad_(True)
+    y_g = Yg.reshape(-1, 1).requires_grad_(True)
+    r_x_g, r_y_g, r_c_g = ns_residual(model, x_g, y_g, nu)
+    l_pde_max = (r_x_g**2 + r_y_g**2 + r_c_g**2).max().item()
+
     x_bc, y_bc, u_bc, v_bc = make_boundary_data(n // 4, smooth_lid=False)
     x_bc, y_bc = x_bc.to(device), y_bc.to(device)
     u_bc, v_bc = u_bc.to(device), v_bc.to(device)
@@ -49,7 +59,7 @@ def _eval_losses(model, nu, n=2_000, device=DEVICE):
         _, _, p_mid = model(t, t)
     l_p = p_mid.item() ** 2
 
-    return l_pde, l_bc, l_p
+    return l_pde, l_pde_max, l_bc, l_p
 
 # ── CLI ────────────────────────────────────────────────────────────────────────
 parser = argparse.ArgumentParser()
@@ -155,7 +165,7 @@ while epoch < MAX_EPOCHS:
     acc_p   += loss_p.item()
 
     if epoch % EVAL_EVERY == 0:
-        eval_L_pde, eval_L_bc, eval_L_p = _eval_losses(model, nu, n=N_eval, device=DEVICE)
+        eval_L_pde, eval_L_pde_max, eval_L_bc, eval_L_p = _eval_losses(model, nu, n=N_eval, device=DEVICE)
         scheduler.step(eval_L_pde)
         current_lr = opt.param_groups[0]['lr']
 
@@ -186,7 +196,7 @@ while epoch < MAX_EPOCHS:
             break
 
 # ── Final evaluation ───────────────────────────────────────────────────────────
-final_L_pde, final_L_bc, final_L_p = _eval_losses(model, nu, n=N_eval, device=DEVICE)
+final_L_pde, final_L_pde_max, final_L_bc, final_L_p = _eval_losses(model, nu, n=N_eval, device=DEVICE)
 with torch.no_grad():
     u_ghia_pred, _, _ = model(
         torch.tensor([[0.5]], device=DEVICE),
@@ -209,25 +219,26 @@ print(f"{'='*60}", flush=True)
 FIELDS = [
     'run_id', 'timestamp', 'activation', 'width', 'n_params', 'epochs_run', 'converged',
     'lr_initial', 'lr_final',
-    'final_L_pde', 'final_L_bc', 'final_L_p', 'eval_L_pde',
+    'final_L_pde', 'final_L_pde_max', 'final_L_bc', 'final_L_p', 'eval_L_pde',
     'u_ghia', 'ghia_ref', 'elapsed_min',
     'lid', 'git_sha',
 ]
 
 row = {
-    'run_id':       run_id,
-    'timestamp':    datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-    'activation':   ACTIVATION,
-    'width':        WIDTH,
-    'n_params':     n_params,
-    'epochs_run':   epoch,
-    'converged':    converged,
-    'lr_initial':   f'{lr_initial:.6e}',
-    'lr_final':     f'{lr_final:.6e}',
-    'final_L_pde':  f'{final_L_pde:.6e}',
-    'final_L_bc':   f'{final_L_bc:.6e}',
-    'final_L_p':    f'{final_L_p:.6e}',
-    'eval_L_pde':   f'{final_L_pde:.6e}',
+    'run_id':           run_id,
+    'timestamp':        datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    'activation':       ACTIVATION,
+    'width':            WIDTH,
+    'n_params':         n_params,
+    'epochs_run':       epoch,
+    'converged':        converged,
+    'lr_initial':       f'{lr_initial:.6e}',
+    'lr_final':         f'{lr_final:.6e}',
+    'final_L_pde':      f'{final_L_pde:.6e}',
+    'final_L_pde_max':  f'{final_L_pde_max:.6e}',
+    'final_L_bc':       f'{final_L_bc:.6e}',
+    'final_L_p':        f'{final_L_p:.6e}',
+    'eval_L_pde':       f'{final_L_pde:.6e}',
     'u_ghia':       f'{u_ghia:.6f}',
     'ghia_ref':     f'{ghia_ref:.6f}',
     'elapsed_min':  f'{elapsed_min:.3f}',
