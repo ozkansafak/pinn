@@ -40,38 +40,7 @@ Default: `[2, 64, 64, 64, 64, 3]` — 12,867 parameters. ReLU cannot be used bec
 
 ## Width Sweep Results
 
-We train 10 networks doubling width from 4 → 2048, measuring how accuracy scales with capacity. Key finding: **sin network errors decrease consistently with width. Tanh degrades at width ≥ 128** due to neuron saturation.
-
-#### tanh baseline
-
-| Width | Params | Epochs | eval_L_pde | u_ghia | Error vs Ghia |
-|------:|-------:|-------:|-----------:|-------:|--------------:|
-| 4 | 87 | 22,000 | 2.427e-02 | 0.6188 | 0.1184 |
-| 8 | 267 | 32,500 | 1.799e-02 | 0.6360 | 0.1012 |
-| 16 | 915 | 54,000 | 1.840e-03 | 0.7128 | 0.0244 |
-| 32 | 3,363 | 45,000 | 1.350e-03 | 0.7178 | 0.0194 |
-| 64 | 12,867 | 39,000 | 1.035e-03 | 0.7283 | 0.0089 |
-| 128 | 50,307 | 26,500 | 8.131e-03 | 0.6922 | **0.0450 ↑** |
-| 256 | 198,915 | 22,000 | 1.648e-02 | 0.5954 | **0.1418 ↑** |
-
-#### sin network sweep (width 2048 in progress)
-
-| Width | Params | N_f | Epochs | eval_L_pde | u_ghia | Error vs Ghia |
-|------:|-------:|----:|-------:|-----------:|-------:|--------------:|
-| 4 | 87 | 10,000 | 25,500 | 2.129e-02 | 0.6125 | 0.1247 |
-| 8 | 267 | 10,000 | 35,500 | 1.494e-02 | 0.6700 | 0.0672 |
-| 16 | 915 | 10,000 | 49,500 | 4.558e-03 | 0.7287 | 0.0086 |
-| 32 | 3,363 | 10,000 | 49,000 | 2.215e-03 | 0.7419 | 0.0047 |
-| 64 | 12,867 | 10,000 | 45,000 | 1.378e-03 | 0.7404 | 0.0032 |
-| 128 | 50,307 | 10,000 | 42,500 | 8.423e-04 | 0.7400 | 0.0027 |
-| 256 | 198,915 | 10,000 | 38,500 | 1.962e-03 | 0.7416 | 0.0044 |
-| 512 | 791,043 | 10,000 | 43,000 | 1.456e-03 | 0.7393 | 0.0021 |
-| 1024 | 3,154,947 | 10,000 | 39,000 | 1.914e-03 | 0.7389 | **0.0017 ← best** |
-| 2048 | — | 10,000 | — | — | — | running... |
-
-Ghia et al. (1982) reference: **u(0.5, 0.9609) = 0.73722** for Re = 100.
-
-Width 1024 is the best result so far — velocity error 7× lower than the tanh baseline at the same width.
+Sin network errors decrease consistently with width; tanh degrades at width ≥ 128 due to neuron saturation. Width 1024 is the best result so far — 7× lower error than the tanh baseline at the same width. Full tables and figure in [DESIGN.md](DESIGN.md#width-sweep-design).
 
 ---
 
