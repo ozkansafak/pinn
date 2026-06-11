@@ -10,13 +10,13 @@ The lid-driven cavity is a canonical benchmark in CFD. The domain is a unit squa
 
 The governing equations are the incompressible Navier-Stokes equations:
 
-**x-momentum:**
+**x-momentum:** 
 $$u \frac{\partial u}{\partial x} + v \frac{\partial u}{\partial y} = -\frac{\partial p}{\partial x} + \nu \left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right)$$
 
-**y-momentum:**
+**y-momentum:** 
 $$u \frac{\partial v}{\partial x} + v \frac{\partial v}{\partial y} = -\frac{\partial p}{\partial y} + \nu \left(\frac{\partial^2 v}{\partial x^2} + \frac{\partial^2 v}{\partial y^2}\right)$$
 
-**Mass conservation:**
+**Mass conservation:** 
 $$\frac{\partial u}{\partial x} + \frac{\partial v}{\partial y} = 0$$
 
 where `u`, `v` are velocity components, `p` is pressure, and `ν = 0.01` (Re = 100).
@@ -153,7 +153,7 @@ Each run (`train_width.py --width W --activation {sin|tanh}`):
 <p align="center">
   <img src="assets/error_vs_width.png" width="820"/>
 </p>
-<p align="center"><em>Normalized velocity error vs width for tanh and sin activations. tanh peaks at w=64 then collapses due to neuron saturation. The sin network's errors decrease consistently, reaching 0.23% at w=1024 — 5× better than the best tanh result.</em></p>
+<p align="center"><em>Percent velocity error vs layer width. tanh degrades at w≥128; sin errors decrease consistently to 0.23% at w=1024.</em></p>
 
 **Planned plots:**
 - `eval_L_pde` vs `n_params` (log-log) — residual quality vs. capacity
