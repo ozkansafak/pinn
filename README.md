@@ -20,7 +20,7 @@ The lid-driven cavity is a canonical CFD benchmark. The domain is [0,1]² with a
 
 The network takes `(x, y)` as input and simultaneously outputs `(u, v, p)` — velocity and pressure at every point in the domain. No mesh, no finite differences: all spatial derivatives are computed via PyTorch autograd.
 
-See [DESIGN.md](DESIGN.md) for the full formulation: NS equations, loss function, boundary conditions, collocation points, autograd, and SIREN.
+See [DESIGN.md](DESIGN.md) for the full formulation: NS equations, loss function, boundary conditions, collocation points, autograd, and sin network initialization.
 
 ---
 
@@ -30,7 +30,7 @@ See [DESIGN.md](DESIGN.md) for the full formulation: NS equations, loss function
 (x, y)  →  [Linear → tanh/sin] × 4  →  Linear  →  (u, v, p)
 ```
 
-Default: `[2, 64, 64, 64, 64, 3]` — 12,867 parameters. ReLU cannot be used because the NS residual requires second-order spatial derivatives, which vanish for ReLU. We experiment with tanh and SIREN (sinusoidal) activations.
+Default: `[2, 64, 64, 64, 64, 3]` — 12,867 parameters. ReLU cannot be used because the NS residual requires second-order spatial derivatives, which vanish for ReLU. We experiment with tanh and sin activations.
 
 <p align="center">
   <img src="assets/network_architecture.png" width="820"/>
@@ -40,7 +40,7 @@ Default: `[2, 64, 64, 64, 64, 3]` — 12,867 parameters. ReLU cannot be used bec
 
 ## Width Sweep Results
 
-We train 10 networks doubling width from 4 → 2048, measuring how accuracy scales with capacity. Key finding: **SIREN (sinusoidal activation) errors decrease consistently with width. Tanh degrades at width ≥ 128** due to neuron saturation.
+We train 10 networks doubling width from 4 → 2048, measuring how accuracy scales with capacity. Key finding: **sin network errors decrease consistently with width. Tanh degrades at width ≥ 128** due to neuron saturation.
 
 #### tanh baseline
 
@@ -54,7 +54,7 @@ We train 10 networks doubling width from 4 → 2048, measuring how accuracy scal
 | 128 | 50,307 | 26,500 | 8.131e-03 | 0.6922 | **0.0450 ↑** |
 | 256 | 198,915 | 22,000 | 1.648e-02 | 0.5954 | **0.1418 ↑** |
 
-#### SIREN sweep (width 2048 in progress)
+#### sin network sweep (width 2048 in progress)
 
 | Width | Params | N_f | Epochs | eval_L_pde | u_ghia | Error vs Ghia |
 |------:|-------:|----:|-------:|-----------:|-------:|--------------:|
@@ -115,7 +115,7 @@ jupyter notebook
 ## File Structure
 
 ```
-pinn.py                # PINN and SIREN models, NS residual, boundary data
+pinn.py                # tanh and sin network models, NS residual, boundary data
 train.py               # Full training run (uniform/sigmoid lid)
 train_width.py         # Single width-sweep run
 sweep_width.sh         # Orchestrator: 10 doubling widths in sequence

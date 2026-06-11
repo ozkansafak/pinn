@@ -105,25 +105,23 @@ For prediction, use `torch.no_grad()`. For evaluating `L_PDE` at inference time,
 
 ---
 
-## SIREN — Sinusoidal Representation Networks
+## Sinusoidal Activation Networks
 
-> Sitzmann, V., Martel, J. N. P., Bergman, A. W., Lindell, D. B., & Wetzstein, G. (2020), *Implicit Neural Representations with Periodic Activation Functions.*, NeurIPS 2020. [arXiv:2006.09661](https://arxiv.org/abs/2006.09661)
+Sitzmann et al. show that periodic activations — specifically `sin(ω₀·Wx+b)` with a carefully chosen initialization — allow networks to represent signals and their higher-order derivatives far more accurately than ReLU or tanh. For PINNs, this is directly relevant: the NS residual requires second-order spatial derivatives, and the sin network's smooth, nonzero derivatives at every order give the optimizer a clean gradient signal all the way to the weights.
 
-Sitzmann et al. show that periodic activations — specifically `sin(ω₀·Wx+b)` with a carefully chosen initialization — allow networks to represent signals and their higher-order derivatives far more accurately than ReLU or Tanh. For PINNs, this is directly relevant: the NS residual requires second-order spatial derivatives, and SIREN's smooth, nonzero derivatives at every order give the optimizer a clean gradient signal all the way to the weights.
-
-A SIREN replaces the `tanh` activation with a `sin`:
+A sin network replaces the `tanh` activation with `sin`:
 
 ```
-tanh  layer:  x  →  tanh(W x + b)
-SIREN layer:  x  →  sin(ω₀ · W x + b)
+tanh network:  x  →  tanh(W x + b)
+sin  network:  x  →  sin(ω₀ · W x + b)
 ```
 
-The key difference is the **initialization scheme**. For a standard tanh network, weights are drawn from Xavier/He. For SIREN, weights are initialized so the input to `sin(·)` is uniformly distributed over `[−π, π]` — preserving the activation distribution through depth. The first layer uses `U(−1/n_in, 1/n_in)` and subsequent layers use `U(−√(6/n_in)/ω₀, +√(6/n_in)/ω₀)`.
+The key difference is the **initialization scheme**. For a tanh network, weights are drawn from Xavier/He. For a sin network, weights are initialized so the input to `sin(·)` is uniformly distributed over `[−π, π]` — preserving the activation distribution through depth. The first layer uses `U(−1/n_in, 1/n_in)` and subsequent layers use `U(−√(6/n_in)/ω₀, +√(6/n_in)/ω₀)`.
 
 **Why it matters for PINNs:**
 
 - The NS equations require 2nd-order derivatives. For `sin`, every derivative is also a `sin` or `cos` — nonzero everywhere, so gradient signal flows cleanly.
-- In wide tanh networks, pre-activations grow like `√width`, pushing neurons into the saturated ±1 region. SIREN's init keeps the pre-activations in the oscillatory regime regardless of width.
+- In wide tanh networks, pre-activations grow like `√width`, pushing neurons into the saturated ±1 region. The sin network's initialization keeps the pre-activations in the oscillatory regime regardless of width.
 - We use `ω₀ = 1.0`. The cavity flow solution is smooth; low-frequency bias is appropriate.
 
 <p align="center">
@@ -138,11 +136,11 @@ The key difference is the **initialization scheme**. For a standard tanh network
 `sweep_width.sh` trains 10 networks doubling width from 4 → 2048:
 
 ```bash
-bash sweep_width.sh              # SIREN, widths 4..2048, cap 60k epochs
+bash sweep_width.sh              # sin, widths 4..2048, cap 60k epochs
 bash sweep_width.sh 4 60000 tanh # tanh baseline
 ```
 
-Each run (`train_width.py --width W --activation {siren|tanh}`):
+Each run (`train_width.py --width W --activation {sin|tanh}`):
 - Builds `[2, W, W, W, W, 3]`
 - LR scales as `lr = 1e-3 × (64/W)` — μP-inspired, keeps effective update magnitude constant across widths
 - `ReduceLROnPlateau(factor=0.3, patience=3000 epochs)` — self-terminating when `lr < lr_initial × 1e-3` (7 plateau fires)
@@ -160,3 +158,11 @@ Each run (`train_width.py --width W --activation {siren|tanh}`):
 **Planned plots:**
 - `eval_L_pde` vs `n_params` (log-log) — residual quality vs. capacity
 - Loss and LR curves per width on one figure (`python plot_sweep.py`)
+
+---
+
+## References
+
+- Sitzmann, V., Martel, J. N. P., Bergman, A. W., Lindell, D. B., & Wetzstein, G. (2020), *Implicit Neural Representations with Periodic Activation Functions.*, NeurIPS 2020. [arXiv:2006.09661](https://arxiv.org/abs/2006.09661)
+- Ghia, U., Ghia, K. N., & Shin, C. T. (1982), *High-Re solutions for incompressible flow using the Navier-Stokes equations and a multigrid method.*, Journal of Computational Physics, 48(3), 387–411.
+- Yang, G., Hu, E. J., Babuschkin, I., Sidor, S., Liu, X., Farhi, D., ... & Gao, J. (2022), *Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer.*, arXiv:2203.03466. (μP — learning rate scales as 1/width to keep update magnitude constant across network sizes.)
