@@ -5,7 +5,7 @@ A neural network trained to solve a fluid flow problem by satisfying the governi
 <p align="center">
   <img src="images/lid_driven_cavity_diagram.png" width="252"/>
 </p>
-<p align="center"><em>The top lid moves at u = 1, driving a recirculating vortex inside the unit square. Three walls are stationary (no-slip).</em></p>
+<p align="center"><em>The top lid moves at u = 1, driving a recirculating asymettric vortex inside the flow domain. The three wall boundaries are stationary (no slip condition).</em></p>
 
 <p align="center">
   <img src="videos/flow_Re100_uniformU_1xhidden.gif"/>
@@ -26,7 +26,7 @@ A neural network trained to solve a fluid flow problem by satisfying the governi
 
 ## Governing Equations
 
-The solution must satisfy the incompressible Navier-Stokes (NS) equations. *Incompressible* means the fluid density is constant (∇·u = 0). The Reynolds number Re=100 (ν=0.01) characterizes how viscous the fluid is; at Re=100 the flow is smooth and laminar.
+The solution must satisfy the incompressible Navier-Stokes equations at Re=100. (Note that Re characterize the ratio of inertial to viscous forces.  Re=100 places the flow firmly in the laminar regime. At Re~5,000–10,000 the flow becomes turbulent and far harder to solve numerically.)
 
 **x direction momentum:**
 $$u \frac{\partial u}{\partial x} + v \frac{\partial u}{\partial y} = -\frac{\partial p}{\partial x} + \nu \left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right)$$
@@ -37,13 +37,13 @@ $$u \frac{\partial v}{\partial x} + v \frac{\partial v}{\partial y} = -\frac{\pa
 **Mass conservation (incompressibility):**
 $$\frac{\partial u}{\partial x} + \frac{\partial v}{\partial y} = 0$$
 
-**Boundary conditions:** fluid velocity must match the wall velocity on the wall boundary.
+**Boundary conditions:** no-slip on all four walls — fluid at each wall matches the wall velocity. Three walls are fixed (u=v=0); fluid at the lid moves at u=1, v=0.
 
 ---
 
 ## The PINN Approach
 
-The network `f(x, y) → (u, v, p)` is trained by minimizing a loss with three terms:
+The network is trained by minimizing a residual with three terms:
 
 $$\mathcal{L} = 10 \cdot \mathcal{L}_{BC} + \mathcal{L}_{PDE} + 10 \cdot \mathcal{L}_{p}$$
 
@@ -67,7 +67,7 @@ u_xx = grad(u_x.sum(), x_f, create_graph=True)[0] # ∂²u/∂x²
 The autograd computation graph and the optimizer are two separate objects:
 
 - **Autograd:** Builds a computation graph to record the sequence of operations that produces each tensor. `.backward()` traverses this graph in reverse via the chain rule to compute gradients for every tensor in the graph, including `x_f` and the network weights.
-- **Optimizer:** a separate object with a list of tensors to update. `Adam(net.parameters())` only knows about the weights.
+- **Optimizer:** a separate object with a list of tensors to update. `Adam(model.parameters())` only knows about the weights.
 
 So `x_f.grad` is populated after `.backward()` but never used by the optimizer. The collocation points are resampled fresh every epoch anyway.
 </details>
