@@ -10,7 +10,7 @@ A neural network trained to solve a fluid flow problem by satisfying the governi
 <p align="center">
   <img src="videos/flow_Re100_uniformU_1xhidden.gif"/>
 </p>
-<p align="center"><em>Training animation — sin network, W=64, 12,867 parameters, Re=100, uniform lid. Left: vorticity field + velocity vectors. Center: pressure field + −∇p vectors. Right: streamfunction isolines.</em></p>
+<p align="center"><em>Training animation — sin network, W=64, 12,867 parameters, Re=100, uniform lid, 36,000 epochs. Left: vorticity field + velocity vectors. Center: pressure field + −∇p vectors. Right: streamfunction isolines.</em></p>
 
 ---
 
