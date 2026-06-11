@@ -166,16 +166,9 @@ We train 10 networks doubling width from 4 → 2048, with both tanh and sin acti
 ### Training Dashboard
 
 <p align="center">
-  <img src="images/epoch=70_000%20Re=100.png"/>
+  <img src="videos/dashboard_Re100_uniformU_1xhidden.gif"/>
 </p>
-<p align="center"><em>
-<strong>Row 1:</strong> Vorticity field with streamlines (left); pressure field with −∇p vectors (right).<br>
-<strong>Row 2:</strong> Pointwise PDE residual (left); boundary condition error on all four walls (right).<br>
-<strong>Row 3:</strong> Cross-sectional u and v profiles at y = 0.001, 0.5, 0.999.<br>
-<strong>Row 4:</strong> Training and evaluation loss curves (log scale).
-</em></p>
-
-At epoch 27,000 the network predicts u = 0.7225 at (x=0.5, y=0.9609), within 2% of the Ghia et al. (1982) reference value of 0.73722.
+<p align="center"><em>Dashboard animation — sin network, W=64, 12,867 parameters, Re=100, uniform lid, 36,000 epochs. Row 1: vorticity + pressure fields. Row 2: pointwise PDE residual + BC error. Row 3: cross-sectional u and v profiles. Row 4: loss curves and learning rate schedule.</em></p>
 
 ---
 
