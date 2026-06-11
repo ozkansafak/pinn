@@ -18,9 +18,9 @@ A Physics-Informed Neural Network (PINN) that solves the 2D incompressible Navie
 
 The lid-driven cavity is a canonical computational fluid dynamics (CFD) benchmark. The domain is [0,1]² with a viscous incompressible fluid. The top lid moves at u=1; three walls are no-slip. This drives a recirculating vortex. We solve at Re=100 (ν=0.01).
 
-The network takes `(x, y)` as input and simultaneously outputs `(u, v, p)` — velocity and pressure at every point in the domain. No mesh, no finite differences: all spatial derivatives are computed via PyTorch autograd.
+Traditional CFD solvers discretize the domain onto a mesh and march forward in time. Here we take a different approach: a neural network is trained to satisfy the Navier-Stokes equations and boundary conditions simultaneously, without a mesh or time-stepping. The network takes `(x, y)` as input and outputs `(u, v, p)` — velocity and pressure — at any point in the domain. Spatial derivatives are computed exactly via PyTorch autograd, and the NS residual is minimized as part of the training loss.
 
-See [DESIGN.md](DESIGN.md) for the full formulation: NS equations, loss function, boundary conditions, collocation points, autograd, and sin network initialization.
+See [DESIGN.md](DESIGN.md) for the full formulation: NS equations, loss function, boundary conditions, collocation points, and autograd.
 
 ---
 
