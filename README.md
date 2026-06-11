@@ -77,8 +77,6 @@ Width 1024 is the best result so far — velocity error 7× lower than the tanh 
 
 ## Results
 
-### Standard lid (u = 1 uniformly along the top lid)
-
 <p align="center">
   <img src="images/epoch=70_000%20Re=100.png"/>
 </p>
@@ -90,18 +88,6 @@ Width 1024 is the best result so far — velocity error 7× lower than the tanh 
 </em></p>
 
 At epoch 27,000 the network predicts u = 0.7225 at (x=0.5, y=0.9609), within 2% of the Ghia et al. (1982) reference value of 0.73722.
-
-### Sigmoid-smoothed lid
-
-<p align="center">
-  <img src="images/lid_driven_cavity_diagram_sigmoid.png" width="252"/>
-</p>
-<p align="center"><em>Lid velocity smoothed with sigmoid ramps over the left and right 10%, eliminating the corner discontinuity.</em></p>
-
-<p align="center">
-  <img src="images/epoch%2025_000,%20Re=100,%20sigmoid%20u.png"/>
-</p>
-<p align="center"><em>Flow field at epoch 25,000 with sigmoid lid BC. Cleaner convergence than the discontinuous lid.</em></p>
 
 ---
 
@@ -116,7 +102,7 @@ jupyter notebook
 
 ```
 pinn.py                # tanh and sin network models, NS residual, boundary data
-train.py               # Full training run (uniform/sigmoid lid)
+train.py               # Full training run
 train_width.py         # Single width-sweep run
 sweep_width.sh         # Orchestrator: 10 doubling widths in sequence
 make_arch_diagram.py   # Generate assets/network_architecture.png
