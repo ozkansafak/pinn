@@ -16,12 +16,12 @@ sin    =  np.sin(omega * x)
 sin_d1 =  omega * np.cos(omega * x)
 sin_d2 = -omega**2 * np.sin(omega * x)
 
-TANH_COLOR = "#4C72B0"
-SIN_COLOR  = "#C44E52"
+TANH_COLOR = "#C44E52"
+SIN_COLOR  = "black"
 
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
 fig.patch.set_facecolor("#F8F8F8")
-fig.suptitle("Activation Functions: tanh vs sin (SIREN, ω₀=1)", fontsize=14,
+fig.suptitle("tanh vs sin", fontsize=14,
              fontweight="bold", color="#222222")
 
 titles   = ["f(x)", "f ′(x)  — 1st derivative", "f ″(x)  — 2nd derivative"]
@@ -31,8 +31,8 @@ sin_data  = [sin,  sin_d1,  sin_d2]
 for ax, title, td, sd in zip(axes, titles, tanh_data, sin_data):
     ax.axhline(0, color="#CCCCCC", lw=0.8, zorder=0)
     ax.axvline(0, color="#CCCCCC", lw=0.8, zorder=0)
-    ax.plot(x, td, color=TANH_COLOR, lw=2.0, label="tanh")
-    ax.plot(x, sd, color=SIN_COLOR,  lw=2.0, label="sin", linestyle="--")
+    ax.plot(x, td, color=TANH_COLOR, lw=2.0, label="tanh", linestyle="--")
+    ax.plot(x, sd, color=SIN_COLOR,  lw=2.0, label="sin")
     ax.set_title(title, fontsize=12)
     ax.set_xlabel("x", fontsize=11)
     ax.set_xlim(-4, 4)
@@ -41,16 +41,6 @@ for ax, title, td, sd in zip(axes, titles, tanh_data, sin_data):
     ax.grid(True, alpha=0.25)
     ax.set_facecolor("#FAFAFA")
 
-# annotate saturation on the tanh plot
-axes[0].annotate("saturates → 0", xy=(3.0, tanh_d1[750]), xytext=(1.5, 0.6),
-                 fontsize=9, color=TANH_COLOR,
-                 arrowprops=dict(arrowstyle="->", color=TANH_COLOR, lw=1.0))
-axes[1].annotate("→ 0 in flat region", xy=(3.0, tanh_d1[750]), xytext=(0.8, 0.55),
-                 fontsize=9, color=TANH_COLOR,
-                 arrowprops=dict(arrowstyle="->", color=TANH_COLOR, lw=1.0))
-axes[2].annotate("→ 0 in flat region", xy=(3.0, tanh_d2[750]), xytext=(0.8, 0.55),
-                 fontsize=9, color=TANH_COLOR,
-                 arrowprops=dict(arrowstyle="->", color=TANH_COLOR, lw=1.0))
 
 plt.tight_layout()
 out = "assets/activation_comparison.png"
