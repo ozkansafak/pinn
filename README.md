@@ -20,7 +20,7 @@ A neural network trained to solve a fluid flow problem by satisfying the governi
 
 **Goal:** Find the velocity field `(u, v)` and pressure field `p` everywhere inside the box at steady state. `u` and `v` are the x- and y-direction velocity components; `p` is scalar pressure.
 
-**Our approach:** Train a neural network `f(x, y) → (u, v, p)` to satisfy the governing equations at every point simultaneously — no mesh, no time-stepping.
+**Our approach:** Traditional CFD solvers discretize the domain onto a mesh and solve the equations numerically at each grid point. Instead, we train a neural network `f(x, y) → (u, v, p)` to satisfy the governing equations at selected points inside the flow domain simultaneously.
 
 ---
 
