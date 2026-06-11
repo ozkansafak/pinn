@@ -1,6 +1,6 @@
 # PINN — Lid-Driven Cavity Flow
 
-A Physics-Informed Neural Network (PINN) that solves the 2D incompressible Navier-Stokes equations for the classic lid-driven cavity benchmark, without a grid, directly from the governing equations and boundary conditions.
+A neural network trained to solve a fluid flow problem by satisfying the governing physics equations directly — no mesh, no simulation.
 
 <p align="center">
   <img src="images/lid_driven_cavity_diagram.png" width="252"/>
@@ -16,9 +16,13 @@ A Physics-Informed Neural Network (PINN) that solves the 2D incompressible Navie
 
 ## The Problem
 
-The lid-driven cavity is a canonical computational fluid dynamics (CFD) benchmark. The domain is [0,1]² with a viscous incompressible fluid. The top lid moves at u=1; three walls are no-slip. This drives a recirculating vortex. We solve at Re=100 (ν=0.01).
+**Setup:** A unit square box filled with viscous fluid. The top wall (the "lid") slides horizontally at speed u=1. The other three walls are fixed. The fluid inside circulates in a vortex — a standard test case in computational fluid dynamics (CFD) called the *lid-driven cavity*.
 
-Traditional CFD solvers discretize the domain onto a mesh and march forward in time. Here we take a different approach: a neural network is trained to satisfy the Navier-Stokes equations and boundary conditions simultaneously, without a mesh or time-stepping. The network takes `(x, y)` as input and outputs `(u, v, p)` — x- and y-direction velocity and pressure — at any point in the domain. Spatial derivatives are computed exactly via PyTorch autograd, and the NS residual is minimized as part of the training loss.
+**Goal:** Find the velocity field `(u, v)` and pressure field `p` everywhere inside the box at steady state. `u` and `v` are the x- and y-direction components of velocity; `p` is the scalar pressure at each point.
+
+**Physics constraint:** The solution must satisfy the incompressible Navier-Stokes (NS) equations — conservation of momentum and mass for a viscous fluid. The Reynolds number Re=100 (ν=0.01) sets how viscous the fluid is; at Re=100 the flow is smooth and laminar.
+
+**Our approach:** Instead of discretizing the domain onto a mesh (as traditional CFD solvers do), we train a neural network `f(x, y) → (u, v, p)` to satisfy the NS equations at every point simultaneously. The NS equations involve spatial derivatives of the outputs — we compute these exactly via PyTorch autograd and penalize any residual as part of the training loss. The network learns the solution by minimizing this physics-informed loss.
 
 See [DESIGN.md](DESIGN.md) for the full formulation: NS equations, loss function, boundary conditions, collocation points, and autograd.
 
@@ -76,6 +80,7 @@ train_width.py         # Single width-sweep run
 sweep_width.sh         # Orchestrator: 10 doubling widths in sequence
 make_arch_diagram.py   # Generate assets/network_architecture.png
 make_activation_fig.py # Generate assets/activation_comparison.png
+make_error_fig.py      # Generate assets/error_vs_width.png
 parse_sweep_logs.py    # Parse log files into CSVs
 plot_sweep.py          # Plot loss & LR curves for all widths
 notebook.ipynb         # Training driver and visualisation
