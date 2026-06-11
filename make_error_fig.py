@@ -45,7 +45,7 @@ ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{v:g}"))
 
 ax.set_xlabel("Width", fontsize=12)
 ax.set_ylabel("Normalized error  |u − u_ref| / u_ref", fontsize=11)
-ax.set_title("Percent Error in Velocity vs Layer Width  (Re=100, Ghia ref)",
+ax.set_title("Percent Velocity Error vs Layer Width",
              fontsize=13, fontweight="bold", color="#222222")
 ax.legend(fontsize=11)
 ax.grid(True, which="both", alpha=0.25)
