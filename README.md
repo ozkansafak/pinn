@@ -22,9 +22,7 @@ A neural network trained to solve a fluid flow problem by satisfying the governi
 
 **Physics constraint:** The solution must satisfy the incompressible Navier-Stokes (NS) equations — conservation of momentum and mass for a viscous fluid. The Reynolds number Re=100 (ν=0.01) sets how viscous the fluid is; at Re=100 the flow is smooth and laminar.
 
-**Our approach:** Instead of discretizing the domain onto a mesh (as traditional CFD solvers do), we train a neural network `f(x, y) → (u, v, p)` to satisfy the NS equations at every point simultaneously. The NS equations involve spatial derivatives of the outputs — we compute these exactly via PyTorch autograd and penalize any residual as part of the training loss. The network learns the solution by minimizing this physics-informed loss.
-
-See [DESIGN.md](DESIGN.md) for the full formulation: NS equations, loss function, boundary conditions, collocation points, and autograd.
+**Our approach:** Instead of discretizing the domain onto a mesh (as traditional CFD solvers do), we train a neural network `f(x, y) → (u, v, p)` to satisfy the NS equations at every point simultaneously. See [How it works →](DESIGN.md#loss-function)
 
 ---
 
