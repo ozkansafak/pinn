@@ -37,30 +37,13 @@ $$u \frac{\partial v}{\partial x} + v \frac{\partial v}{\partial y} = -\frac{\pa
 **Mass conservation (incompressibility):**
 $$\frac{\partial u}{\partial x} + \frac{\partial v}{\partial y} = 0$$
 
-**Boundary conditions** — fluid velocity must match the wall velocity at every wall:
-
-| Wall | Condition |
-|------|-----------|
-| Bottom (y=0) | u=0, v=0 |
-| Top (y=1) — the lid | u=1, v=0 |
-| Left (x=0) | u=0, v=0 |
-| Right (x=1) | u=0, v=0 |
+**Boundary conditions** — fluid velocity must match the wall velocity on the wall boundary.
 
 ---
 
 ## The PINN Approach
 
-The network outputs `(u, v, p)` at any `(x, y)`. The NS equations involve spatial derivatives of these outputs — we compute them exactly via PyTorch autograd:
-
-```python
-x_f = torch.rand(N_f, 1, requires_grad=True)   # collocation points
-u_x  = grad(u.sum(), x_f, create_graph=True)[0] # ∂u/∂x
-u_xx = grad(u_x.sum(), x_f, create_graph=True)[0] # ∂²u/∂x²
-```
-
-*Collocation points* are `N_f = 10,000` random interior points where the NS residual is evaluated each epoch.
-
-The training loss penalizes three things simultaneously:
+The network `f(x, y) → (u, v, p)` is trained by minimizing a loss that penalizes three things simultaneously:
 
 $$\mathcal{L} = 10 \cdot \mathcal{L}_{BC} + \mathcal{L}_{PDE} + 10 \cdot \mathcal{L}_{p}$$
 
@@ -69,6 +52,14 @@ $$\mathcal{L} = 10 \cdot \mathcal{L}_{BC} + \mathcal{L}_{PDE} + 10 \cdot \mathca
 - **`L_p`** — pressure gauge: pins `p(0.5, 0.5) = 0` to fix the free constant (incompressible NS only determines pressure up to an additive constant)
 
 The factor of 10 on `L_BC` and `L_p` prioritizes boundary satisfaction over interior accuracy early in training.
+
+`L_PDE` requires evaluating the NS residual at `N_f = 10,000` random interior *collocation points* each epoch. This in turn requires spatial derivatives of the network outputs — we use PyTorch autograd to compute them exactly:
+
+```python
+x_f = torch.rand(N_f, 1, requires_grad=True)   # collocation points
+u_x  = grad(u.sum(), x_f, create_graph=True)[0] # ∂u/∂x
+u_xx = grad(u_x.sum(), x_f, create_graph=True)[0] # ∂²u/∂x²
+```
 
 <details>
 <summary><strong>Note — why <code>requires_grad=True</code> on collocation points doesn't update them</strong></summary>
@@ -86,7 +77,7 @@ So `x_f.grad` is populated after `.backward()` but never read by the optimizer. 
 ## Network Architecture
 
 ```
-(x, y)  →  [Linear → tanh/sin] × 4  →  Linear  →  (u, v, p)
+(x, y)  →  [tanh/sin] × 4  →  (u, v, p)
 ```
 
 Default: `[2, 64, 64, 64, 64, 3]` — 12,867 parameters. ReLU cannot be used because the NS residual requires second-order spatial derivatives, which vanish for ReLU. We experiment with tanh and sin activations.
@@ -128,36 +119,24 @@ We train 10 networks doubling width from 4 → 2048, with both tanh and sin acti
 <p align="center">
   <img src="assets/error_vs_width.png" width="820"/>
 </p>
-<p align="center"><em>Percent velocity error vs layer width. tanh degrades at w≥128; sin network peaks at w=1024 (0.23% error) then degrades at w=2048.</em></p>
-
-#### tanh baseline
-
-| Width | Params | Epochs | eval_L_pde | u_ghia | Error vs Ghia |
-|------:|-------:|-------:|-----------:|-------:|--------------:|
-| 4 | 87 | 22,000 | 2.427e-02 | 0.6188 | 0.1184 |
-| 8 | 267 | 32,500 | 1.799e-02 | 0.6360 | 0.1012 |
-| 16 | 915 | 54,000 | 1.840e-03 | 0.7128 | 0.0244 |
-| 32 | 3,363 | 45,000 | 1.350e-03 | 0.7178 | 0.0194 |
-| 64 | 12,867 | 39,000 | 1.035e-03 | 0.7283 | 0.0089 |
-| 128 | 50,307 | 26,500 | 8.131e-03 | 0.6922 | **0.0450 ↑** |
-| 256 | 198,915 | 22,000 | 1.648e-02 | 0.5954 | **0.1418 ↑** |
+<p align="center"><em>Percent velocity error vs layer width. tanh degrades at w>64; sin network peaks at w=1024 (0.23% error) then degrades at w=2048.</em></p>
 
 #### sin network sweep
 
-| Width | Params | N_f | Epochs | eval_L_pde | u_ghia | Error vs Ghia |
-|------:|-------:|----:|-------:|-----------:|-------:|--------------:|
-| 4 | 87 | 10,000 | 25,500 | 2.129e-02 | 0.6125 | 0.1247 |
-| 8 | 267 | 10,000 | 35,500 | 1.494e-02 | 0.6700 | 0.0672 |
-| 16 | 915 | 10,000 | 49,500 | 4.558e-03 | 0.7287 | 0.0086 |
-| 32 | 3,363 | 10,000 | 49,000 | 2.215e-03 | 0.7419 | 0.0047 |
-| 64 | 12,867 | 10,000 | 45,000 | 1.378e-03 | 0.7404 | 0.0032 |
-| 128 | 50,307 | 10,000 | 42,500 | 8.423e-04 | 0.7400 | 0.0027 |
-| 256 | 198,915 | 10,000 | 38,500 | 1.962e-03 | 0.7416 | 0.0044 |
-| 512 | 791,043 | 10,000 | 43,000 | 1.456e-03 | 0.7393 | 0.0021 |
-| 1024 | 3,154,947 | 10,000 | 39,000 | 1.914e-03 | 0.7389 | **0.0017 ← best** |
-| 2048 | 12,601,347 | 10,000 | 43,000 | 3.548e-03 | 0.7521 | **0.0148 ↑** |
+| Width | Model size | N_f | Epochs | Train time | eval_L_pde | u_ghia | \|Δu\| |
+|------:|-----------:|----:|-------:|-----------:|-----------:|-------:|------:|
+| 4 | 87 | 10,000 | 25,500 | 6 min | 2.129e-02 | 0.6125 | 0.1247 |
+| 8 | 267 | 10,000 | 35,500 | 11 min | 1.494e-02 | 0.6700 | 0.0672 |
+| 16 | 915 | 10,000 | 49,500 | 16 min | 4.558e-03 | 0.7287 | 0.0086 |
+| 32 | 3.4K | 10,000 | 49,000 | 15 min | 2.215e-03 | 0.7419 | 0.0047 |
+| 64 | 12.9K | 10,000 | 45,000 | 17 min | 1.378e-03 | 0.7404 | 0.0032 |
+| 128 | 50.3K | 10,000 | 42,500 | 29 min | 8.423e-04 | 0.7400 | 0.0027 |
+| 256 | 199K | 10,000 | 38,500 | 57 min | 1.962e-03 | 0.7416 | 0.0044 |
+| 512 | 791K | 10,000 | 43,000 | 2.5 h | 1.456e-03 | 0.7393 | 0.0021 |
+| 1024 | 3.2M | 10,000 | 39,000 | 6.2 h | 1.914e-03 | 0.7389 | 0.0017 |
+| 2048 | 12.6M | 10,000 | 43,000 | 23.8 h | 3.548e-03 | 0.7521 | 0.0148 |
 
-`u_ghia` is the predicted u-velocity at `(x=0.5, y=0.9609)` — the vertical centerline just below the lid — compared against the Ghia et al. (1982) reference value of **0.73722** at Re=100.
+All runs on Apple Silicon GPU (MPS). `u_ghia` is the predicted u-velocity at `(x=0.5, y=0.9609)`, compared against the Ghia et al. (1982) reference value of 0.73722 at Re=100. An important thing to note is the error decreases slowly past w=32 because N_f is held fixed at 10,000 while model size grows ~4× per step; by Chinchilla scaling, N_f ∝ N_params, so the collocation budget should grow proportionally with the model. The percent velocity error decreasing more slowly than an exponential decay also suggests the data size should be increased particularly after w=64.
 
 ---
 
