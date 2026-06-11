@@ -75,7 +75,7 @@ The factor of 10 on `L_BC` and `L_p` prioritizes boundary satisfaction over inte
 
 The autograd computation graph and the optimizer are two separate things:
 
-- **Autograd** — tracks how tensors were computed. `.backward()` computes gradients for every participating tensor, including `x_f` and the network weights.
+- **Autograd** — records the sequence of operations that produced each tensor, building a computation graph. `.backward()` traverses this graph in reverse via the chain rule to compute gradients for every participating tensor, including `x_f` and the network weights.
 - **Optimizer** — a separate object with an explicit list of tensors to update. `Adam(net.parameters())` only knows about the weights.
 
 So `x_f.grad` is populated after `.backward()` but never read by the optimizer. The collocation points are resampled fresh every epoch anyway.
