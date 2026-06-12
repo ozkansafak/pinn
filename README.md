@@ -10,7 +10,10 @@ A neural network trained to solve a fluid flow problem by satisfying the governi
 <p align="center">
   <img src="videos/flow_Re100_uniformU_1xhidden.gif"/>
 </p>
-<p align="center"><em>Training animation — sin network, W=64, 12,867 parameters, Re=100, uniform lid, 36,000 epochs. Left: vorticity field + velocity vectors. Center: pressure field + −∇p vectors. Right: streamfunction isolines.</em></p>
+<p align="center"><em>Training animation — sin network, W=64, 12,867 parameters, Re=100, uniform lid, 36,000 epochs. 
+Left: vorticity field + velocity vectors. 
+Center: pressure field + −∇p vectors.
+Right: streamfunction isolines.</em></p>
 
 ---
 
@@ -83,7 +86,7 @@ So `x_f.grad` is populated after `.backward()` but never used by the optimizer. 
 Default: `[2, 64, 64, 64, 64, 3]` — 12,867 parameters. ReLU cannot be used because the NS residual requires second-order spatial derivatives, which vanish for ReLU. We experiment with tanh and sin activations.
 
 <p align="center">
-  <img src="assets/network_architecture.png" width="820"/>
+  <img src="assets/network_architecture.png" width="574"/>
 </p>
 
 ### Sinusoidal Activation
@@ -116,24 +119,25 @@ We train 10 networks by doubling the layer widths from 4 to 2048, with both tanh
 <p align="center">
   <img src="assets/error_vs_width.png" width="900"/>
 </p>
-<p align="center"><em>Left: percent velocity error vs width — tanh degrades at w>64; sin peaks at w=1024 (0.23% error). Right: PDE residual loss vs width — sin's L_PDE worsens after w=128, likely due to insufficient N_f=10,000 collocation points for larger models.</em></p>
+<p align="center"><em>Left: percent velocity error vs width — tanh degrades at w>64; sin peaks at w=1024 (0.23% error). 
+Right: PDE residual loss vs width — sin's L_PDE worsens after w=128, likely due to insufficient N_f=10,000 collocation points for larger models.</em></p>
 
 Error decreases slowly past w=32 because N_f is held fixed at 10,000 while model size grows ~4× per step; by Chinchilla scaling, $N_f \propto N_\text{params}$, so the collocation budget should grow proportionally with the model.
 
 #### sin network sweep
 
-| Width | Model size | N_f | Epochs | Train time | eval_L_pde | u_ghia | \|Δu\| |
-|------:|-----------:|----:|-------:|-----------:|-----------:|-------:|------:|
-| 4 | 87 | 10,000 | 25,500 | 6 min | 2.129e-02 | 0.6125 | 0.1247 |
-| 8 | 267 | 10,000 | 35,500 | 11 min | 1.494e-02 | 0.6700 | 0.0672 |
-| 16 | 915 | 10,000 | 49,500 | 16 min | 4.558e-03 | 0.7287 | 0.0086 |
-| 32 | 3.4K | 10,000 | 49,000 | 15 min | 2.215e-03 | 0.7419 | 0.0047 |
-| 64 | 12.9K | 10,000 | 45,000 | 17 min | 1.378e-03 | 0.7404 | 0.0032 |
-| 128 | 50.3K | 10,000 | 42,500 | 29 min | 8.423e-04 | 0.7400 | 0.0027 |
-| 256 | 199K | 10,000 | 38,500 | 57 min | 1.962e-03 | 0.7416 | 0.0044 |
-| 512 | 791K | 10,000 | 43,000 | 2.5 h | 1.456e-03 | 0.7393 | 0.0021 |
-| 1024 | 3.2M | 10,000 | 39,000 | 6.2 h | 1.914e-03 | 0.7389 | 0.0017 |
-| 2048 | 12.6M | 10,000 | 43,000 | 23.8 h | 3.548e-03 | 0.7521 | 0.0148 |
+| Width | Model size | N_f | Epochs | Train time | eval_L_pde | L_pde_max | u_ghia | \|Δu\| |
+|------:|-----------:|----:|-------:|-----------:|-----------:|----------:|-------:|------:|
+| 4 | 87 | 10,000 | 23,000 | 6 min | 0.0260 | 0.680 | 0.6149 | 0.1223 |
+| 8 | 267 | 10,000 | 26,000 | 8 min | 0.0173 | 1.080 | 0.6573 | 0.0799 |
+| 16 | 915 | 10,000 | 45,000 | 14 min | 0.00573 | 0.619 | 0.7326 | 0.0046 |
+| 32 | 3.4K | 10,000 | 47,500 | 15 min | 0.00152 | 0.584 | 0.7343 | 0.0029 |
+| 64 | 12.9K | 10,000 | 34,000 | 13 min | 0.00290 | 0.920 | 0.7349 | 0.0023 |
+| 128 | 50.3K | 10,000 | 39,000 | 27 min | 0.00296 | 0.879 | 0.7409 | 0.0037 |
+| 256 | 199K | 10,000 | 46,000 | 77 min | 0.000703 | 0.305 | 0.7396 | 0.0024 |
+| 512 | 791K | 10,000 | 43,000 | 2.5 h | 0.00146 | — | 0.7393 | 0.0021 |
+| 1024 | 3.2M | 10,000 | 39,000 | 6.2 h | 0.00191 | — | 0.7389 | 0.0017 |
+| 2048 | 12.6M | 10,000 | 43,000 | 23.8 h | 0.00355 | — | 0.7521 | 0.0148 |
 
 All runs on Apple Silicon GPU (MPS). `u_ghia` is the predicted u-velocity at `(x=0.5, y=0.9609)`, compared against the Ghia et al. (1982) reference value of 0.73722 at Re=100.
 

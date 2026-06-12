@@ -18,7 +18,7 @@ COLORS = {
 }
 
 LAYER_LABELS = ["Input", "Hidden 1", "Hidden 2", "Hidden 3", "Hidden 4", "Output"]
-ACT_LABELS   = [None, "tanh/sin", "tanh/sin", "tanh/sin", "tanh/sin", None]
+ACT_LABELS   = [None, "sin", "sin", "sin", "sin", None]
 
 INPUT_NAMES  = ["y", "x"]   # x on top, y on bottom (ys goes bottom→top)
 OUTPUT_NAMES = ["p", "v", "u"]  # u on top, p on bottom
@@ -36,7 +36,7 @@ def draw_neurons(ax, lx, ys, color, labels=None, size=800):
                    edgecolors="white", linewidths=1.4)
         if labels:
             ax.text(lx, y, labels[i], ha="center", va="center",
-                    fontsize=14, color="white", fontweight="bold", zorder=6)
+                    fontsize=18, color="white", fontweight="bold", zorder=6)
 
 
 def draw_dots(ax, lx, y_center):
@@ -94,7 +94,7 @@ def main():
 
     # ── Layer labels (below) ──────────────────────────────────────────────────
     for li, (lx, lbl) in enumerate(zip(LAYER_X, LAYER_LABELS)):
-        ax.text(lx, 0.45, lbl, ha="center", va="top", fontsize=16,
+        ax.text(lx, 0.45, lbl, ha="center", va="top", fontsize=20,
                 color="#333333", fontweight="bold")
 
     # ── Activation labels (above, between layers) ─────────────────────────────
@@ -102,7 +102,7 @@ def main():
         mid_x = LAYER_X[li]
         y_top = all_ys[li][-1] + 0.55
         ax.text(mid_x, y_top, ACT_LABELS[li], ha="center", va="bottom",
-                fontsize=12, color=COLORS["tanh"], style="italic",
+                fontsize=16, color=COLORS["tanh"], style="italic",
                 bbox=dict(boxstyle="round,pad=0.25", fc="#EDE7F6", ec=COLORS["tanh"],
                           alpha=0.85, lw=0.8))
 
@@ -110,14 +110,11 @@ def main():
     ax.annotate("", xy=(LAYER_X[-1] - 0.28, FIG_H / 2),
                 xytext=(LAYER_X[-2] + 0.28, FIG_H / 2),
                 arrowprops=dict(arrowstyle="-|>", color="#555555", lw=1.4))
-    ax.text((LAYER_X[-2] + LAYER_X[-1]) / 2, FIG_H / 2 + 0.38,
-            "Linear", ha="center", va="bottom", fontsize=12,
-            color="#555555", style="italic")
 
     # ── Title ─────────────────────────────────────────────────────────────────
     ax.set_title(
         "PINN Architecture  ·  [2 → 64 → 64 → 64 → 64 → 3]  ·  12,867 parameters",
-        fontsize=15, fontweight="bold", pad=12, color="#222222"
+        fontsize=18, fontweight="bold", pad=12, color="#222222"
     )
 
     plt.tight_layout()
