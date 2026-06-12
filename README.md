@@ -141,7 +141,10 @@ All runs on Apple Silicon GPU (MPS). `u_ghia` is the predicted u-velocity at `(x
 
 `eval_L_pde` and `L_pde_max` are both evaluated on the same uniform 128×128 interior grid — mean and max of `r_x² + r_y² + r_c²` respectively. From a physics standpoint `L_pde_max` is the more meaningful metric: the mean can look small even when the solution violates the equations badly at isolated points. `L_pde_max` stays above 0.58 through w=128 despite `eval_L_pde` appearing well-converged, only dropping to 0.305 at w=256.
 
-**Future work:** add `L_pde_max` directly to the training loss (e.g. as a minimax term) so the optimizer is explicitly penalized for worst-case residuals rather than average ones.
+#### Future Work
+
+- Scale `N_f` proportionally with model size rather than holding it fixed at 10,000 — the collocation budget is the likely bottleneck preventing accuracy gains at larger widths.
+- Add `L_pde_max` directly to the training loss (e.g. as a minimax term) so the optimizer is explicitly penalized for worst-case residuals rather than average ones.
 
 ---
 
