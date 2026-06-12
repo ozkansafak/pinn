@@ -103,14 +103,7 @@ def make_collocation_points(N_f=10_000):
 
 
 def eval_all_losses(model, nu, N_eval=2_000, smooth_lid=True):
-    # L_PDE: fresh interior collocation points
-    x = torch.rand(N_eval, 1, requires_grad=True)
-    y = torch.rand(N_eval, 1, requires_grad=True)
-    r_x, r_y, r_c = ns_residual(model, x, y, nu)
-    residuals = r_x**2 + r_y**2 + r_c**2
-    l_pde = residuals.mean().item()
-
-    # L_PDE max: dense grid for L∞ norm
+    # Both L2 and L∞ on the same 128×128 grid for consistency
     N_grid = 128
     xs = torch.linspace(0.01, 0.99, N_grid)
     ys = torch.linspace(0.01, 0.99, N_grid)
@@ -118,7 +111,9 @@ def eval_all_losses(model, nu, N_eval=2_000, smooth_lid=True):
     x_g = Xg.reshape(-1, 1).requires_grad_(True)
     y_g = Yg.reshape(-1, 1).requires_grad_(True)
     r_x_g, r_y_g, r_c_g = ns_residual(model, x_g, y_g, nu)
-    l_pde_max = (r_x_g**2 + r_y_g**2 + r_c_g**2).max().item()
+    residuals  = r_x_g**2 + r_y_g**2 + r_c_g**2
+    l_pde      = residuals.mean().item()
+    l_pde_max  = residuals.max().item()
 
     # L_BC: fresh boundary points
     x_bc, y_bc, u_bc, v_bc = make_boundary_data(N_eval // 4, smooth_lid=smooth_lid)

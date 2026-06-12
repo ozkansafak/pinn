@@ -11,9 +11,7 @@ A neural network trained to solve a fluid flow problem by satisfying the governi
   <img src="videos/flow_Re100_uniformU_1xhidden.gif"/>
 </p>
 <p align="center"><em>Training animation — sin network, W=64, 12,867 parameters, Re=100, uniform lid, 36,000 epochs. 
-Left: vorticity field + velocity vectors. 
-Center: pressure field + −∇p vectors.
-Right: streamfunction isolines.</em></p>
+Left: vorticity field + velocity vectors.  Center: pressure field + −∇p vectors. Right: streamfunction isolines.</em></p>
 
 ---
 
@@ -140,6 +138,10 @@ Error decreases slowly past w=32 because N_f is held fixed at 10,000 while model
 | 2048 | 12.6M | 10,000 | 43,000 | 23.8 h | 0.00355 | — | 0.7521 | 0.0148 |
 
 All runs on Apple Silicon GPU (MPS). `u_ghia` is the predicted u-velocity at `(x=0.5, y=0.9609)`, compared against the Ghia et al. (1982) reference value of 0.73722 at Re=100.
+
+`eval_L_pde` and `L_pde_max` are both evaluated on the same uniform 128×128 interior grid — mean and max of `r_x² + r_y² + r_c²` respectively. From a physics standpoint `L_pde_max` is the more meaningful metric: the mean can look small even when the solution violates the equations badly at isolated points. `L_pde_max` stays above 0.58 through w=128 despite `eval_L_pde` appearing well-converged, only dropping to 0.305 at w=256.
+
+**Future work:** add `L_pde_max` directly to the training loss (e.g. as a minimax term) so the optimizer is explicitly penalized for worst-case residuals rather than average ones.
 
 ---
 

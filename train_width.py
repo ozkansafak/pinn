@@ -33,11 +33,7 @@ def _make_collocation(n, device):
 
 
 def _eval_losses(model, nu, n=2_000, device=DEVICE):
-    x, y = _make_collocation(n, device)
-    r_x, r_y, r_c = ns_residual(model, x, y, nu)
-    l_pde = (r_x**2 + r_y**2 + r_c**2).mean().item()
-
-    # L∞ norm on dense grid
+    # Both L2 and L∞ on the same 128×128 grid for consistency
     N_grid = 128
     xs = torch.linspace(0.01, 0.99, N_grid, device=device)
     ys = torch.linspace(0.01, 0.99, N_grid, device=device)
@@ -45,7 +41,9 @@ def _eval_losses(model, nu, n=2_000, device=DEVICE):
     x_g = Xg.reshape(-1, 1).requires_grad_(True)
     y_g = Yg.reshape(-1, 1).requires_grad_(True)
     r_x_g, r_y_g, r_c_g = ns_residual(model, x_g, y_g, nu)
-    l_pde_max = (r_x_g**2 + r_y_g**2 + r_c_g**2).max().item()
+    residuals = r_x_g**2 + r_y_g**2 + r_c_g**2
+    l_pde     = residuals.mean().item()
+    l_pde_max = residuals.max().item()
 
     x_bc, y_bc, u_bc, v_bc = make_boundary_data(n // 4, smooth_lid=False)
     x_bc, y_bc = x_bc.to(device), y_bc.to(device)
