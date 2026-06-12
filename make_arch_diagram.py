@@ -30,13 +30,13 @@ def neuron_ys(n_visible, fig_h=FIG_H):
     return np.linspace(fig_h / 2 - span / 2, fig_h / 2 + span / 2, n_visible)
 
 
-def draw_neurons(ax, lx, ys, color, labels=None, size=800):
+def draw_neurons(ax, lx, ys, color, labels=None, size=1120):
     for i, y in enumerate(ys):
         ax.scatter(lx, y, s=size, zorder=5, color=color,
                    edgecolors="white", linewidths=1.4)
         if labels:
             ax.text(lx, y, labels[i], ha="center", va="center",
-                    fontsize=18, color="white", fontweight="bold", zorder=6)
+                    fontsize=25, color="white", fontweight="bold", zorder=6)
 
 
 def draw_dots(ax, lx, y_center):
@@ -94,7 +94,7 @@ def main():
 
     # ── Layer labels (below) ──────────────────────────────────────────────────
     for li, (lx, lbl) in enumerate(zip(LAYER_X, LAYER_LABELS)):
-        ax.text(lx, 0.45, lbl, ha="center", va="top", fontsize=20,
+        ax.text(lx, 0.45, lbl, ha="center", va="top", fontsize=22,
                 color="#333333", fontweight="bold")
 
     # ── Activation labels (above, between layers) ─────────────────────────────
@@ -102,7 +102,7 @@ def main():
         mid_x = LAYER_X[li]
         y_top = all_ys[li][-1] + 0.55
         ax.text(mid_x, y_top, ACT_LABELS[li], ha="center", va="bottom",
-                fontsize=16, color=COLORS["tanh"], style="italic",
+                fontsize=22, color=COLORS["tanh"], style="italic",
                 bbox=dict(boxstyle="round,pad=0.25", fc="#EDE7F6", ec=COLORS["tanh"],
                           alpha=0.85, lw=0.8))
 
@@ -114,7 +114,7 @@ def main():
     # ── Title ─────────────────────────────────────────────────────────────────
     ax.set_title(
         "PINN Architecture  ·  [2 → 64 → 64 → 64 → 64 → 3]  ·  12,867 parameters",
-        fontsize=18, fontweight="bold", pad=12, color="#222222"
+        fontsize=20, fontweight="bold", pad=12, color="#222222"
     )
 
     plt.tight_layout()
