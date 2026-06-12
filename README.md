@@ -101,7 +101,7 @@ The sin activation avoids this via a matching initialization that keeps pre-acti
 <p align="center">
   <img src="assets/activation_comparison.png" width="900"/>
 </p>
-<p align="center"><em>tanh saturates for large inputs. sin stays oscillatory at all amplitudes.</em></p>
+<p align="center"><em>tanh saturates for large inputs. sin stays oscillatory at all inputs.</em></p>
 
 ---
 
