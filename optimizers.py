@@ -2,6 +2,69 @@ import torch
 from torch.optim import Optimizer
 
 
+def _newton_schulz(G, steps=5):
+    """Orthogonal polar factor of G via Newton-Schulz iteration."""
+    a, b, c = 3.4445, -4.7750, 2.0315
+    X = G / (G.norm() + 1e-7)
+    if G.size(0) > G.size(1):
+        X = X.T
+    for _ in range(steps):
+        A = X @ X.T
+        X = a * X + b * A @ X + c * A @ A @ X
+    if G.size(0) > G.size(1):
+        X = X.T
+    return X
+
+
+class Muon(Optimizer):
+    """
+    Muon — MomentUm Orthogonalized by Newton-schulz.
+
+    For 2D weight matrices: applies Nesterov momentum then orthogonalizes
+    the update via Newton-Schulz, making the effective step a rotation rather
+    than a raw gradient direction. Update is scaled by sqrt(max(n, m)) so the
+    RMS step magnitude stays proportional to lr.
+
+    For 1D / scalar params (biases): plain SGD with Nesterov momentum.
+    """
+    def __init__(self, params, lr=0.02, momentum=0.95, ns_steps=5):
+        defaults = dict(lr=lr, momentum=momentum, ns_steps=ns_steps)
+        super().__init__(params, defaults)
+
+    @torch.no_grad()
+    def step(self, closure=None):
+        loss = None
+        if closure is not None:
+            with torch.enable_grad():
+                loss = closure()
+
+        for group in self.param_groups:
+            lr  = group['lr']
+            mu  = group['momentum']
+            ns  = group['ns_steps']
+
+            for p in group['params']:
+                if p.grad is None:
+                    continue
+                g = p.grad
+
+                state = self.state[p]
+                if 'buf' not in state:
+                    state['buf'] = torch.zeros_like(g)
+
+                buf = state['buf']
+                buf.mul_(mu).add_(g)
+                update = g.add(buf, alpha=mu)   # Nesterov
+
+                if update.ndim == 2:
+                    update = _newton_schulz(update, steps=ns)
+                    update = update * (max(update.size(0), update.size(1)) ** 0.5)
+
+                p.add_(update, alpha=-lr)
+
+        return loss
+
+
 class ClampedCenteredAdam(Optimizer):
     """
     Adam variant that tracks true centered variance and clamps the denominator.

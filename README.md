@@ -118,7 +118,8 @@ We train 10 networks by doubling the layer widths from 4 to 2048, with both tanh
   <img src="assets/error_vs_width.png" width="900"/>
 </p>
 <p align="center"><em>Left: percent velocity error vs width — tanh degrades at w>64; sin error decreases monotonically through w=32 then plateaus. 
-Right: PDE residual loss vs width — sin's L_PDE decreases monotonically through w=128 when N_f scales proportionally with model size.</em></p>
+Right: PDE residual loss vs width — sin's L_PDE decreases monotonically through w=128 when N_f scales proportionally with model size.
+All runs use Adam. At w=64, Muon outperforms Adam on every metric (3× lower mean PDE residual, 5.5× lower worst-case residual); wider widths not yet tested with Muon.</em></p>
 
 With proportionally scaled N_f, both metrics improve monotonically through w=128. The plateau in velocity error past w=32 reflects diminishing returns in the flow field prediction even as the PDE residual continues to drop.
 
@@ -142,6 +143,17 @@ All runs on L4 GPU via [Modal](https://modal.com) cloud compute. `N_f` scales pr
 #### Future Work
 
 - Add `L_pde_max` directly to the training loss (e.g. as a minimax term) so the optimizer is explicitly penalized for worst-case residuals rather than average ones.
+
+### Optimizer Comparison
+
+All runs at w=64, sin network, N_f=10,000, 60k max epochs on L4 GPU.
+
+Muon applies Nesterov momentum then replaces the raw update with its orthogonal polar factor, computed efficiently via Newton-Schulz iteration instead of a full SVD. This is a computationally cheap approximation of singular value whitening: all singular values of the weight update matrix are normalized to 1, making the effective step size uniform across every parameter direction at each layer. It outperforms Adam on every metric at w=64: 3× lower mean PDE residual, 5.5× lower worst-case residual, and converges 14,000 epochs sooner.
+
+| Optimizer | u_ghia | \|Δu\| | eval_L_pde | L_pde_max | L_bc | Epochs |
+|:---|---:|---:|---:|---:|---:|---:|
+| Adam lr=1e-3 | 0.7381 | 0.0009 | 8.8e-4 | 0.476 | 1.0e-3 | 53,500 |
+| Muon lr=1e-3 | 0.7404 | 0.0032 | 3.1e-4 | 0.087 | 2.7e-3 | 39,500 |
 
 ---
 
@@ -188,3 +200,4 @@ pyproject.toml         # Dependencies
 - Ghia, U., Ghia, K. N., & Shin, C. T. (1982), *High-Re solutions for incompressible flow using the Navier-Stokes equations and a multigrid method.*, Journal of Computational Physics, 48(3), 387–411. [pdf link](https://www.msaidi.ir/upload/Ghia1982.pdf?i=1)
 - Botella, O. & Peyret, R. (1998), *Benchmark Spectral Results on the Lid-Driven Cavity Flow.*, Computers & Fluids, 27, 421–433. [pdf link](https://cats2d.com/documentation/botellapeyret98.pdf) (higher-accuracy spectral benchmark for the same problem)
 - Yang, G., Hu, E. J., Babuschkin, I., Sidor, S., Liu, X., Farhi, D., ... & Gao, J. (2022), *Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer.*, arXiv:2203.03466. [arXiv:2203.03466](https://arxiv.org/pdf/2203.03466)
+- Jordan, K. (2024), *Muon: An optimizer for hidden layers in neural networks.* [GitHub](https://github.com/KellerJordan/modded-nanogpt)

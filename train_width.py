@@ -16,7 +16,7 @@ from datetime import datetime
 import torch
 
 from pinn import PINN, SIREN, ns_residual, make_boundary_data
-from optimizers import ClampedCenteredAdam
+from optimizers import ClampedCenteredAdam, Muon
 
 # ── Device ─────────────────────────────────────────────────────────────────────
 if torch.backends.mps.is_available():
@@ -67,8 +67,9 @@ parser.add_argument('--max-epochs', type=int,   default=60_000)
 parser.add_argument('--n-f',        type=int,   default=10_000)
 parser.add_argument('--output',     type=str,   default='results/width_sweep.csv')
 parser.add_argument('--activation', choices=['tanh', 'siren'], default='siren')
-parser.add_argument('--optimizer', choices=['adam', 'cca'], default='adam')
+parser.add_argument('--optimizer', choices=['adam', 'cca', 'muon'], default='adam')
 parser.add_argument('--tau',       type=float, default=1.0, help='CCA denominator floor')
+parser.add_argument('--lr',        type=float, default=None, help='Override lr_initial')
 args = parser.parse_args()
 
 WIDTH      = args.width
@@ -81,13 +82,13 @@ TAU        = args.tau
 # ── Fixed hyperparameters ──────────────────────────────────────────────────────
 N_b        = 1_000
 N_f        = args.n_f
-PDE_MB     = 10_000   # max collocation points per backward pass (memory ceiling)
+PDE_MB     = max(500, 10_000 * 64 // WIDTH)  # scales down for wider models (2nd-order autograd memory ∝ width)
 N_eval     = 2_000
 EVAL_EVERY = 500          # epochs between eval_L_pde checks (feeds scheduler + stop)
 nu         = 0.01
 LID        = 'uniform'
 layers     = [2, WIDTH, WIDTH, WIDTH, WIDTH, 3]
-lr_initial = 1e-3 * (64 / WIDTH)   # μP-inspired: constant effective update size across widths
+lr_initial = args.lr if args.lr is not None else 1e-3 * (64 / WIDTH)
 lr_min     = lr_initial * 1e-3     # stop when LR drops this low
 
 Re         = round(1 / nu)
@@ -130,6 +131,8 @@ print(flush=True)
 model = (SIREN(layers) if ACTIVATION == 'siren' else PINN(layers)).to(DEVICE)
 if OPT_NAME == 'cca':
     opt = ClampedCenteredAdam(model.parameters(), lr=lr_initial, tau=TAU)
+elif OPT_NAME == 'muon':
+    opt = Muon(model.parameters(), lr=lr_initial)
 else:
     opt = torch.optim.Adam(model.parameters(), lr=lr_initial)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
