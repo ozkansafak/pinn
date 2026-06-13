@@ -117,10 +117,10 @@ We train 10 networks by doubling the layer widths from 4 to 2048, with both tanh
 <p align="center">
   <img src="assets/error_vs_width.png" width="900"/>
 </p>
-<p align="center"><em>Left: percent velocity error vs width — tanh degrades at w>64; sin peaks at w=1024 (0.23% error). 
-Right: PDE residual loss vs width — sin's L_PDE worsens after w=128, likely due to insufficient N_f=10,000 collocation points for larger models.</em></p>
+<p align="center"><em>Left: percent velocity error vs width — tanh degrades at w>64; sin error decreases monotonically through w=32 then plateaus. 
+Right: PDE residual loss vs width — sin's L_PDE decreases monotonically through w=128 when N_f scales proportionally with model size.</em></p>
 
-Error decreases slowly past w=32 because N_f is held fixed at 10,000 while model size grows ~4× per step; by Chinchilla scaling, $N_f \propto N_\text{params}$, so the collocation budget should grow proportionally with the model.
+With proportionally scaled N_f, both metrics improve monotonically through w=128. The plateau in velocity error past w=32 reflects diminishing returns in the flow field prediction even as the PDE residual continues to drop.
 
 #### sin network sweep
 
