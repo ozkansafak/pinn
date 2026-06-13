@@ -148,7 +148,7 @@ All runs on L4 GPU via [Modal](https://modal.com) cloud compute. `N_f` scales pr
 
 All runs at w=64, sin network, N_f=10,000, 60k max epochs on L4 GPU.
 
-Muon applies Nesterov momentum then replaces the raw update with its orthogonal polar factor, computed efficiently via Newton-Schulz iteration instead of a full SVD. This is a computationally cheap approximation of singular value whitening: all singular values of the weight update matrix are normalized to 1, making the effective step size uniform across every parameter direction at each layer. It outperforms Adam on every metric at w=64: 3× lower mean PDE residual, 5.5× lower worst-case residual, and converges 14,000 epochs sooner.
+Muon accumulates Nesterov momentum into a matrix **G**, then replaces it with its orthogonal polar factor **U·Vᵀ** — where **G = U·Σ·Vᵀ** is the SVD — before applying the weight update. This whitens the singular values of the update matrix: the magnitude information in **Σ** is discarded and all singular values are normalized to 1, so the update treats every singular direction of the weight matrix equally regardless of its original scale. The SVD is never computed explicitly; instead, a quintic Newton-Schulz iteration (**X ← aX + b(XXᵀ)X + c(XXᵀ)²X**, coefficients tuned for fast convergence) approximates **U·Vᵀ** in a handful of matrix multiplications. This is equivalent to steepest descent under the spectral norm constraint on the weight update. At w=64, Muon outperforms Adam on every metric: 3× lower mean PDE residual, 5.5× lower worst-case residual, and converges 14,000 epochs sooner.
 
 | Optimizer | u_ghia | \|Δu\| | eval_L_pde | L_pde_max | L_bc | Epochs |
 |:---|---:|---:|---:|---:|---:|---:|
