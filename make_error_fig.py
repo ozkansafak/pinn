@@ -12,12 +12,10 @@ tanh_widths = [4, 8, 16, 32, 64, 128, 256]
 tanh_ughi   = [0.618789, 0.636039, 0.712834, 0.717778, 0.728309, 0.692204, 0.595371]
 tanh_lpde   = [2.427e-02, 1.799e-02, 1.840e-03, 1.350e-03, 1.035e-03, 8.131e-03, 1.648e-02]
 
-# ── sin sweep ──────────────────────────────────────────────────────────────────
-sin_widths = [4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
-sin_ughi   = [0.612545, 0.669994, 0.728651, 0.741875, 0.740412,
-              0.739961, 0.741628, 0.739332, 0.738904, 0.752068]
-sin_lpde   = [2.129e-02, 1.494e-02, 4.558e-03, 2.215e-03, 1.378e-03,
-              8.423e-04, 1.962e-03, 1.456e-03, 1.914e-03, 3.548e-03]
+# ── sin sweep (w=4–128: L4 GPU, proportional N_f; w=256+: pending) ────────────
+sin_widths = [4, 8, 16, 32, 64, 128]
+sin_ughi   = [0.6338, 0.6374, 0.7333, 0.7355, 0.7402, 0.7416]
+sin_lpde   = [1.968e-02, 1.566e-02, 2.74e-03, 1.67e-03, 9.1e-04, 6.0e-04]
 
 def norm_err_pct(u_pred):
     return abs(u_pred - GHIA_REF) / GHIA_REF * 100
@@ -35,8 +33,8 @@ for ax in (ax1, ax2):
     ax.set_facecolor("#FAFAFA")
     ax.set_xscale("log", base=2)
     ax.set_yscale("log")
-    ax.set_xlim(left=3, right=2500)
-    ax.set_xticks([4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048])
+    ax.set_xlim(left=3, right=200)
+    ax.set_xticks([4, 8, 16, 32, 64, 128])
     ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: str(int(v))))
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{v:g}"))
     ax.set_xlabel("Width", fontsize=12)

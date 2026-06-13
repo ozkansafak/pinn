@@ -126,24 +126,21 @@ Error decreases slowly past w=32 because N_f is held fixed at 10,000 while model
 
 | Width | Model size | N_f | Epochs | Train time | eval_L_pde | L_pde_max | u_ghia | \|Δu\| |
 |------:|-----------:|----:|-------:|-----------:|-----------:|----------:|-------:|------:|
-| 4 | 87 | 10,000 | 23,000 | 6 min | 0.0260 | 0.680 | 0.6149 | 0.1223 |
-| 8 | 267 | 10,000 | 26,000 | 8 min | 0.0173 | 1.080 | 0.6573 | 0.0799 |
-| 16 | 915 | 10,000 | 45,000 | 14 min | 0.00573 | 0.619 | 0.7326 | 0.0046 |
-| 32 | 3.4K | 10,000 | 47,500 | 15 min | 0.00152 | 0.584 | 0.7343 | 0.0029 |
-| 64 | 12.9K | 10,000 | 34,000 | 13 min | 0.00290 | 0.920 | 0.7349 | 0.0023 |
-| 128 | 50.3K | 10,000 | 39,000 | 27 min | 0.00296 | 0.879 | 0.7409 | 0.0037 |
-| 256 | 199K | 10,000 | 46,000 | 77 min | 0.000703 | 0.305 | 0.7396 | 0.0024 |
-| 512 | 791K | 10,000 | 43,000 | 2.5 h | 0.00146 | — | 0.7393 | 0.0021 |
-| 1024 | 3.2M | 10,000 | 39,000 | 6.2 h | 0.00191 | — | 0.7389 | 0.0017 |
-| 2048 | 12.6M | 10,000 | 43,000 | 23.8 h | 0.00355 | — | 0.7521 | 0.0148 |
+| 4 | 87 | 10,000 | 26,500 | 10 min | 0.01968 | 1.064 | 0.6338 | 0.1035 |
+| 8 | 267 | 10,000 | 33,500 | 12 min | 0.01566 | 1.382 | 0.6374 | 0.0998 |
+| 16 | 915 | 10,000 | 60,000 | 21 min | 0.00274 | 0.636 | 0.7333 | 0.0039 |
+| 32 | 3.4K | 10,000 | 40,500 | 18 min | 0.00167 | 0.425 | 0.7355 | 0.0018 |
+| 64 | 12.9K | 10,000 | 50,000 | 17 min | 0.00091 | 0.499 | 0.7402 | 0.0030 |
+| 128 | 50.3K | 40,000 | 44,500 | 106 min | 0.00060 | 0.268 | 0.7416 | 0.0044 |
+| 256 | 199K | 155,000 | — | — | — | — | — | — |
+| 512 | 791K | 600,000 | — | — | — | — | — | — |
 
-All runs on Apple Silicon GPU (MPS). `u_ghia` is the predicted u-velocity at `(x=0.5, y=0.9609)`, compared against the Ghia et al. (1982) reference value of 0.73722 at Re=100.
+All runs on L4 GPU via [Modal](https://modal.com) cloud compute. `N_f` scales proportionally with model size, anchored at w=64 → N_f=10,000. w=256 and w=512 runs in progress. `u_ghia` is the predicted u-velocity at `(x=0.5, y=0.9609)`, compared against the Ghia et al. (1982) reference value of 0.73722 at Re=100.
 
-`eval_L_pde` and `L_pde_max` are both evaluated on the same uniform 128×128 interior grid — mean and max of `r_x² + r_y² + r_c²` respectively. From a physics standpoint `L_pde_max` is the more meaningful metric: the mean can look small even when the solution violates the equations badly at isolated points. `L_pde_max` stays above 0.58 through w=128 despite `eval_L_pde` appearing well-converged, only dropping to 0.305 at w=256.
+`eval_L_pde` and `L_pde_max` are both evaluated on the same uniform 128×128 interior grid — mean and max of `r_x² + r_y² + r_c²` respectively. From a physics standpoint `L_pde_max` is the more meaningful metric: the mean can look small even when the solution violates the equations badly at isolated points. With proportionally scaled N_f, `L_pde_max` drops to 0.268 at w=128 — a 3× improvement over the fixed N_f=10,000 baseline (0.879), confirming that the collocation budget was the bottleneck.
 
 #### Future Work
 
-- Scale `N_f` proportionally with model size rather than holding it fixed at 10,000 — the collocation budget is the likely bottleneck preventing accuracy gains at larger widths.
 - Add `L_pde_max` directly to the training loss (e.g. as a minimax term) so the optimizer is explicitly penalized for worst-case residuals rather than average ones.
 
 ---

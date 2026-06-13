@@ -16,6 +16,7 @@ from datetime import datetime
 import torch
 
 from pinn import PINN, SIREN, ns_residual, make_boundary_data
+from optimizers import ClampedCenteredAdam
 
 # ── Device ─────────────────────────────────────────────────────────────────────
 if torch.backends.mps.is_available():
@@ -63,18 +64,24 @@ def _eval_losses(model, nu, n=2_000, device=DEVICE):
 parser = argparse.ArgumentParser()
 parser.add_argument('--width',      type=int,   required=True)
 parser.add_argument('--max-epochs', type=int,   default=60_000)
+parser.add_argument('--n-f',        type=int,   default=10_000)
 parser.add_argument('--output',     type=str,   default='results/width_sweep.csv')
 parser.add_argument('--activation', choices=['tanh', 'siren'], default='siren')
+parser.add_argument('--optimizer', choices=['adam', 'cca'], default='adam')
+parser.add_argument('--tau',       type=float, default=1.0, help='CCA denominator floor')
 args = parser.parse_args()
 
 WIDTH      = args.width
 MAX_EPOCHS = args.max_epochs
 CSV_PATH   = args.output
 ACTIVATION = args.activation
+OPT_NAME   = args.optimizer
+TAU        = args.tau
 
 # ── Fixed hyperparameters ──────────────────────────────────────────────────────
 N_b        = 1_000
-N_f        = 10_000
+N_f        = args.n_f
+PDE_MB     = 10_000   # max collocation points per backward pass (memory ceiling)
 N_eval     = 2_000
 EVAL_EVERY = 500          # epochs between eval_L_pde checks (feeds scheduler + stop)
 nu         = 0.01
@@ -111,6 +118,7 @@ LOSS_FIELDS  = ["epoch", "train_pde", "train_bc", "eval_pde", "lr"]
 print(f"run_id     : {run_id}")
 print(f"device     : {DEVICE}")
 print(f"activation : {ACTIVATION}")
+print(f"optimizer  : {OPT_NAME}" + (f"  tau={TAU}" if OPT_NAME == 'cca' else ""))
 print(f"width      : {WIDTH}  →  layers {layers}")
 print(f"n_params   : {n_params:,}")
 print(f"lr_initial : {lr_initial:.3e}   lr_min : {lr_min:.3e}")
@@ -120,7 +128,10 @@ print(flush=True)
 
 # ── Model & optimiser ──────────────────────────────────────────────────────────
 model = (SIREN(layers) if ACTIVATION == 'siren' else PINN(layers)).to(DEVICE)
-opt = torch.optim.Adam(model.parameters(), lr=lr_initial)
+if OPT_NAME == 'cca':
+    opt = ClampedCenteredAdam(model.parameters(), lr=lr_initial, tau=TAU)
+else:
+    opt = torch.optim.Adam(model.parameters(), lr=lr_initial)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     opt, mode='min', factor=0.3, patience=3_000 // EVAL_EVERY  # 3k-epoch stall window
 )
@@ -139,26 +150,33 @@ while epoch < MAX_EPOCHS:
 
     opt.zero_grad()
 
+    # BC loss (small, no batching needed)
     x_bc, y_bc, u_bc, v_bc = make_boundary_data(N_b, smooth_lid=False)
     x_bc, y_bc = x_bc.to(DEVICE), y_bc.to(DEVICE)
     u_bc, v_bc = u_bc.to(DEVICE), v_bc.to(DEVICE)
-    x_f, y_f = _make_collocation(N_f, DEVICE)
-
     u_p, v_p, _ = model(x_bc, y_bc)
     loss_bc = ((u_p - u_bc)**2 + (v_p - v_bc)**2).mean()
+    (10 * loss_bc).backward()
 
-    r_x, r_y, r_c = ns_residual(model, x_f, y_f, nu)
-    loss_pde = (r_x**2 + r_y**2 + r_c**2).mean()
+    # PDE loss — mini-batched to cap memory regardless of N_f
+    n_chunks  = max(1, N_f // PDE_MB)
+    loss_pde  = 0.0
+    for _ in range(n_chunks):
+        x_f, y_f = _make_collocation(N_f // n_chunks, DEVICE)
+        r_x, r_y, r_c = ns_residual(model, x_f, y_f, nu)
+        chunk_loss = (r_x**2 + r_y**2 + r_c**2).mean() / n_chunks
+        chunk_loss.backward()
+        loss_pde += chunk_loss.item()
 
+    # Pressure gauge
     t = torch.tensor([[0.5]], device=DEVICE)
     _, _, p_mid = model(t, t)
     loss_p = p_mid**2
+    (10 * loss_p).backward()
 
-    loss = 10 * loss_bc + loss_pde + 10 * loss_p
-    loss.backward()
     opt.step()
 
-    acc_pde += loss_pde.item()
+    acc_pde += loss_pde
     acc_bc  += loss_bc.item()
     acc_p   += loss_p.item()
 
