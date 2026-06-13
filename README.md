@@ -119,7 +119,7 @@ We train 10 networks by doubling the layer widths from 4 to 2048, with both tanh
 </p>
 <p align="center"><em>Left: percent velocity error vs width — tanh degrades at w>64; sin error decreases monotonically through w=32 then plateaus. 
 Right: PDE residual loss vs width — sin's L_PDE decreases monotonically through w=128 when N_f scales proportionally with model size.
-All runs use Adam. At w=64, Muon outperforms Adam on every metric (3× lower mean PDE residual, 5.5× lower worst-case residual); wider widths not yet tested with Muon.</em></p>
+All runs use Adam. At w=64, Muon achieves 3× lower mean and 5.5× lower worst-case PDE residual than Adam, though Adam has better boundary satisfaction and u_ghia agreement; wider widths not yet tested with Muon.</em></p>
 
 With proportionally scaled N_f, both metrics improve monotonically through w=128. The plateau in velocity error past w=32 reflects diminishing returns in the flow field prediction even as the PDE residual continues to drop.
 
@@ -148,7 +148,7 @@ All runs on L4 GPU via [Modal](https://modal.com) cloud compute. `N_f` scales pr
 
 All runs at w=64, sin network, N_f=10,000, 60k max epochs on L4 GPU.
 
-Muon accumulates Nesterov momentum into a matrix **G**, then replaces it with its orthogonal polar factor **U·Vᵀ** — where **G = U·Σ·Vᵀ** is the SVD — before applying the weight update. This whitens the singular values of the update matrix: the magnitude information in **Σ** is discarded and all singular values are normalized to 1, so the update treats every singular direction of the weight matrix equally regardless of its original scale. The SVD is never computed explicitly; instead, a quintic Newton-Schulz iteration (**X ← aX + b(XXᵀ)X + c(XXᵀ)²X**, coefficients tuned for fast convergence) approximates **U·Vᵀ** in a handful of matrix multiplications. This is equivalent to steepest descent under the spectral norm constraint on the weight update. At w=64, Muon outperforms Adam on every metric: 3× lower mean PDE residual, 5.5× lower worst-case residual, and converges 14,000 epochs sooner.
+Muon accumulates Nesterov momentum into a matrix **G**, then replaces it with its orthogonal polar factor **U·Vᵀ** — where **G = U·Σ·Vᵀ** is the SVD — before applying the weight update. This whitens the singular values of the update matrix: the magnitude information in **Σ** is discarded and all singular values are normalized to 1, so the update treats every singular direction of the weight matrix equally regardless of its original scale. The SVD is never computed explicitly; instead, a quintic Newton-Schulz iteration (**X ← aX + b(XXᵀ)X + c(XXᵀ)²X**, coefficients tuned for fast convergence) approximates **U·Vᵀ** in a handful of matrix multiplications. This is equivalent to steepest descent under the spectral norm constraint on the weight update. At w=64, Muon achieves 3× lower mean PDE residual and 5.5× lower worst-case residual than Adam, and converges 14,000 epochs sooner — but Adam has better boundary condition satisfaction (L_bc 2.7× lower) and closer u_ghia agreement with the Ghia benchmark (|Δu| 3.5× lower).
 
 | Optimizer | u_ghia | \|Δu\| | eval_L_pde | L_pde_max | L_bc | Epochs |
 |:---|---:|---:|---:|---:|---:|---:|
