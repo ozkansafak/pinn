@@ -200,4 +200,4 @@ pyproject.toml         # Dependencies
 - Ghia, U., Ghia, K. N., & Shin, C. T. (1982), *High-Re solutions for incompressible flow using the Navier-Stokes equations and a multigrid method.*, Journal of Computational Physics, 48(3), 387–411. [pdf link](https://www.msaidi.ir/upload/Ghia1982.pdf?i=1)
 - Botella, O. & Peyret, R. (1998), *Benchmark Spectral Results on the Lid-Driven Cavity Flow.*, Computers & Fluids, 27, 421–433. [pdf link](https://cats2d.com/documentation/botellapeyret98.pdf) (higher-accuracy spectral benchmark for the same problem)
 - Yang, G., Hu, E. J., Babuschkin, I., Sidor, S., Liu, X., Farhi, D., ... & Gao, J. (2022), *Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer.*, arXiv:2203.03466. [arXiv:2203.03466](https://arxiv.org/pdf/2203.03466)
-- Jordan, K. (2024), *Muon: An optimizer for hidden layers in neural networks.* [GitHub](https://github.com/KellerJordan/modded-nanogpt)
+- Jordan, K. (2024), *Muon: An optimizer for hidden layers in neural networks.* [Blog](https://kellerjordan.github.io/posts/muon/) · [arXiv:2512.16598](https://arxiv.org/html/2512.16598v1)
